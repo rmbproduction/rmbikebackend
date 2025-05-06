@@ -150,11 +150,13 @@ WSGI_APPLICATION = 'authback.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Default to using SQLite for local development
+# Database configuration debugging
+print("Attempting to configure database...")
 
-
-# # Try to use PostgreSQL if DATABASE_URL is set (Railway)
+# Try to use PostgreSQL if DATABASE_URL is set (Railway)
 DATABASE_URL = config('DATABASE_URL', default='', cast=str)
+print(f"DATABASE_URL found: {'Yes' if DATABASE_URL else 'No'}")
+
 if DATABASE_URL:
     try:
         if DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://'):
@@ -165,29 +167,62 @@ if DATABASE_URL:
                     conn_health_checks=True,
                 )
             }
-            print("Using PostgreSQL database from DATABASE_URL")
+            print("Successfully configured PostgreSQL from DATABASE_URL")
     except Exception as e:
-        print(f"Error connecting to PostgreSQL: {str(e)}")
-        print("Falling back to SQLite database")
+        print(f"Error configuring PostgreSQL from DATABASE_URL: {str(e)}")
+        print("Falling back to local configuration")
 else:
+    print("No DATABASE_URL found, checking local PostgreSQL configuration...")
     # If no DATABASE_URL but PostgreSQL config is set, try to use it
     DB_USE_POSTGRES = config('DB_USE_POSTGRES', default='false', cast=str).lower() == 'true'
+    print(f"DB_USE_POSTGRES setting: {DB_USE_POSTGRES}")
+    
     if DB_USE_POSTGRES:
         try:
+            db_name = config('DATABASE_NAME', default='rmbdb')
+            db_user = config('DATABASE_USER', default='postgres')
+            db_password = config('DATABASE_PASSWORD', default='password')
+            db_host = config('DATABASE_HOST', default='localhost')
+            db_port = config('DATABASE_PORT', default='5432')
+            
+            print(f"Database connection details:")
+            print(f"Name: {db_name}")
+            print(f"User: {db_user}")
+            print(f"Host: {db_host}")
+            print(f"Port: {db_port}")
+            
             DATABASES = {
                 "default": {
                     "ENGINE": "django.db.backends.postgresql_psycopg2",
-                    "NAME": config('DATABASE_NAME', default='rmbdb'),
-                    "USER": config('DATABASE_USER', default='postgres'), 
-                    "PASSWORD": config('DATABASE_PASSWORD', default='password'),
-                    "HOST": config('DATABASE_HOST', default='localhost'),
-                    "PORT": config('DATABASE_PORT', default='5432'),
+                    "NAME": db_name,
+                    "USER": db_user,
+                    "PASSWORD": db_password,
+                    "HOST": db_host,
+                    "PORT": db_port,
                 }
             }
-            print("Using PostgreSQL database from local config")
+            print("Successfully configured local PostgreSQL")
         except Exception as e:
-            print(f"Error connecting to local PostgreSQL: {str(e)}")
+            print(f"Error configuring local PostgreSQL: {str(e)}")
             print("Falling back to SQLite database")
+            DATABASES = {
+                'default': {
+                    'ENGINE': 'django.db.backends.sqlite3',
+                    'NAME': BASE_DIR / 'db.sqlite3',
+                }
+            }
+            print("Successfully configured SQLite database")
+    else:
+        print("PostgreSQL not enabled, using SQLite database")
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
+        print("Successfully configured SQLite database")
+
+print("Database configuration complete.")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
