@@ -232,7 +232,7 @@ STATIC_ROOT = os.path.join(BASE_DIR,'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "rmbstatic/static")
+    os.path.join(BASE_DIR, "staticassets")
 ]
 
 MEDIA_ROOT =  os.path.join(BASE_DIR, 'public/static') 
