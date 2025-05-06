@@ -1,0 +1,213 @@
+version: "3.1"
+
+stories:
+- story: greet and goodbye
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: goodbye
+  - action: utter_goodbye
+
+- story: ask about services
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: service_inquiry
+  - action: utter_service_inquiry
+  - intent: goodbye
+  - action: utter_goodbye
+
+- story: ask about specific bike repair services
+  steps:
+  - intent: bike_repair_services
+  - action: utter_bike_repair_services
+  - intent: service_inquiry
+  - action: utter_service_inquiry
+
+- story: ask about pricing
+  steps:
+  - intent: pricing_inquiry
+  - action: utter_pricing_inquiry
+  - intent: bike_repair_services
+  - action: utter_bike_repair_services
+
+- story: booking appointment flow
+  steps:
+  - intent: booking_appointment
+  - action: utter_booking_appointment
+  - intent: affirm
+  - action: utter_appointment_confirmation
+
+- story: booking appointment with denial
+  steps:
+  - intent: booking_appointment
+  - action: utter_booking_appointment
+  - intent: deny
+  - action: utter_goodbye
+
+- story: check appointment status
+  steps:
+  - intent: check_appointment_status
+  - action: utter_check_appointment_status
+
+- story: cancel appointment
+  steps:
+  - intent: cancel_appointment
+  - action: utter_cancel_appointment
+  - intent: affirm
+  - action: utter_goodbye
+
+- story: subscription plans inquiry
+  steps:
+  - intent: subscription_plans
+  - action: utter_subscription_plans
+  - intent: affirm
+  - action: utter_contact_info
+
+- story: contact information
+  steps:
+  - intent: contact_info
+  - action: utter_contact_info
+
+- story: opening hours
+  steps:
+  - intent: opening_hours
+  - action: utter_opening_hours
+
+- story: emergency repair
+  steps:
+  - intent: emergency_repair
+  - action: utter_emergency_repair
+
+- story: out of scope
+  steps:
+  - intent: out_of_scope
+  - action: utter_out_of_scope
+  - intent: affirm
+  - action: utter_greet
+
+- story: service and booking flow
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: service_inquiry
+  - action: utter_service_inquiry
+  - intent: pricing_inquiry
+  - action: utter_pricing_inquiry
+  - intent: booking_appointment
+  - action: utter_booking_appointment
+  - intent: affirm
+  - action: utter_appointment_confirmation
+  - intent: goodbye
+  - action: utter_goodbye
+
+- story: bike problem description and booking
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: bike_problem_description
+  - action: utter_bike_problem_description
+  - intent: booking_appointment
+  - action: utter_booking_appointment
+  - intent: affirm
+  - action: utter_appointment_confirmation
+  - intent: thank_you
+  - action: utter_thank_you
+
+- story: ask about repair time
+  steps:
+  - intent: how_long_repair
+  - action: utter_how_long_repair
+  - intent: booking_appointment
+  - action: utter_booking_appointment
+
+- story: ask for maintenance tips
+  steps:
+  - intent: bike_maintenance_tips
+  - action: utter_bike_maintenance_tips
+  - intent: thank_you
+  - action: utter_thank_you
+
+- story: ask about expertise and warranty
+  steps:
+  - intent: ask_expertise
+  - action: utter_ask_expertise
+  - intent: ask_warranty
+  - action: utter_ask_warranty
+  - intent: thank_you
+  - action: utter_thank_you
+
+- story: pricing to booking flow
+  steps:
+  - intent: pricing_inquiry
+  - action: utter_pricing_inquiry
+  - intent: booking_appointment
+  - action: utter_booking_appointment
+  - intent: ask_warranty
+  - action: utter_ask_warranty
+  - intent: affirm
+  - action: utter_appointment_confirmation
+
+- story: emergency repair to booking
+  steps:
+  - intent: emergency_repair
+  - action: utter_emergency_repair
+  - intent: affirm
+  - action: utter_booking_appointment
+  - intent: thank_you
+  - action: utter_thank_you
+
+- story: bike problem to maintenance tips
+  steps:
+  - intent: bike_problem_description
+  - action: utter_bike_problem_description
+  - intent: bike_maintenance_tips
+  - action: utter_bike_maintenance_tips
+  - intent: thank_you
+  - action: utter_thank_you
+
+- story: subscription inquiry with questions
+  steps:
+  - intent: subscription_plans
+  - action: utter_subscription_plans
+  - intent: ask_warranty
+  - action: utter_ask_warranty
+  - intent: affirm
+  - action: utter_contact_info
+  - intent: thank_you
+  - action: utter_thank_you
+
+- story: detailed service flow with expertise check
+  steps:
+  - intent: bike_repair_services
+  - action: utter_bike_repair_services
+  - intent: ask_expertise
+  - action: utter_ask_expertise
+  - intent: affirm
+  - action: utter_booking_appointment
+  - intent: booking_appointment
+  - action: utter_appointment_confirmation
+
+- story: maintenance tips to service booking
+  steps:
+  - intent: bike_maintenance_tips
+  - action: utter_bike_maintenance_tips
+  - intent: service_inquiry
+  - action: utter_service_inquiry
+  - intent: booking_appointment
+  - action: utter_booking_appointment
+  - intent: thank_you
+  - action: utter_thank_you
+
+- story: greet and bike problems
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: bike_problem_description
+  - action: utter_bike_problem_description
+  - intent: how_long_repair
+  - action: utter_how_long_repair
+  - intent: pricing_inquiry
+  - action: utter_pricing_inquiry
+  - intent: affirm
+  - action: utter_booking_appointment 

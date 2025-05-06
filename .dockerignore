@@ -1,0 +1,21 @@
+# Exclude virtual environments
+v-env/
+
+# Exclude Python cache files
+*.pyc
+__pycache__/
+
+# Exclude database files
+db.sqlite3
+
+# Exclude local certificates
+cert.crt
+cert.key
+
+# Exclude node_modules
+frontend/node_modules
+
+# Exclude other unnecessary files
+*.log
+*.env
+*.DS_Store

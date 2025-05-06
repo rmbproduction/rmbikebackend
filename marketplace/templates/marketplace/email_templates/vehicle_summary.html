@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Summary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
+        .header {
+            background-color: #FF5733;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            padding: 20px;
+        }
+        .vehicle-info {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .section h3 {
+            color: #FF5733;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .info-table td {
+            padding: 8px 0;
+        }
+        .info-table td:first-child {
+            width: 40%;
+            color: #666;
+        }
+        .price {
+            font-size: 22px;
+            color: #FF5733;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .photo-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .photo-item {
+            width: calc(50% - 5px);
+            border: 1px solid #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .photo-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .photo-label {
+            background-color: #f0f0f0;
+            padding: 5px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        @media (max-width: 480px) {
+            .photo-item {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Vehicle Summary</h1>
+        </div>
+        
+        <div class="content">
+            {% if recipient_name %}
+            <p>Dear {{ recipient_name }},</p>
+            {% else %}
+            <p>Dear Customer,</p>
+            {% endif %}
+            
+            <p>Thank you for using our platform. Below is a summary of your vehicle listing:</p>
+            
+            <div class="vehicle-info">
+                <h2>{{ vehicle.brand|default:"Unknown" }} {{ vehicle.model|default:"" }} {{ vehicle.year|default:"" }}</h2>
+                <p class="price">
+                    Expected Price: ₹{{ vehicle.expected_price|default:vehicle.price|default:"0"|floatformat:"0"|stringformat:"s"|slice:":-3" }},{{ vehicle.expected_price|default:vehicle.price|default:"0"|floatformat:"0"|stringformat:"s"|slice:"-3:" }}
+                    {% if data.is_price_negotiable %} (Negotiable){% endif %}
+                </p>
+            </div>
+            
+            {% if photo_urls %}
+            <div class="section">
+                <h3>Vehicle Photos</h3>
+                <div class="photo-gallery">
+                    {% for key, url in photo_urls.items %}
+                    {% if forloop.counter <= 4 %}
+                    <div class="photo-item">
+                        <div class="photo-label">{{ key|capfirst }} View</div>
+                        {% if url|slice:":4" == "data" %}
+                        <img src="{{ url }}" alt="{{ key }} view" />
+                        {% elif url|slice:":4" == "http" %}
+                        <img src="{{ url }}" alt="{{ key }} view" />
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="section">
+                <h3>Vehicle Details</h3>
+                <table class="info-table">
+                    <tr>
+                        <td>Registration</td>
+                        <td><strong>{{ vehicle.registration_number|default:"Not specified" }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Condition</td>
+                        <td><strong>{{ vehicle.condition|default:"Not specified"|title }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Driven</td>
+                        <td><strong>{% if vehicle.kms_driven %}{{ vehicle.kms_driven }} km{% else %}Not specified{% endif %}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Mileage</td>
+                        <td><strong>{{ vehicle.Mileage|default:vehicle.mileage|default:"Not specified" }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Fuel Type</td>
+                        <td><strong>{{ vehicle.fuel_type|default:"Not specified"|title }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Color</td>
+                        <td><strong>{{ vehicle.color|default:"Not specified"|title }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Engine Capacity</td>
+                        <td><strong>{% if vehicle.engine_capacity %}{{ vehicle.engine_capacity }} {% if vehicle.fuel_type == 'electric' %}watts{% else %}cc{% endif %}{% else %}Not specified{% endif %}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Last Service Date</td>
+                        <td><strong>{% if vehicle.last_service_date %}{{ vehicle.last_service_date|date:"F j, Y" }}{% else %}Not specified{% endif %}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Insurance Valid Till</td>
+                        <td><strong>{% if vehicle.insurance_valid_till %}{{ vehicle.insurance_valid_till|date:"F j, Y" }}{% else %}Not specified{% endif %}</strong></td>
+                    </tr>
+                </table>
+            </div>
+            
+            {% if vehicle.description %}
+            <div class="section">
+                <h3>Description</h3>
+                <p>{{ vehicle.description }}</p>
+            </div>
+            {% endif %}
+            
+            <div class="section">
+                <h3>Contact Information</h3>
+                <p><strong>Contact Number:</strong> {{ data.contact_number|default:recipient_phone|default:"Not provided" }}</p>
+                <p><strong>Pickup Address:</strong> {{ data.pickup_address|default:"Not provided" }}</p>
+            </div>
+            
+            <p>To view or manage your listing, please log in to your account on our website.</p>
+            
+            <p>Thank you for choosing AutoRevive for your vehicle selling needs.</p>
+            
+            <p>
+                Best regards,<br>
+                The AutoRevive Team
+            </p>
+            
+            <div class="footer">
+                <p>This email was sent to {{ recipient_email }}</p>
+                <p>© {{ now|date:"Y" }} AutoRevive. All rights reserved.</p>
+                <p>This is an automatically generated email. Please do not reply to this message.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

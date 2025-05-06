@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Success</title>
+</head>
+<body>
+    <h1>Welcome {{ user.username }}!</h1>
+    <p>You have successfully logged in with Google.</p>
+
+    <script>
+        // Store tokens in localStorage or cookies
+        const access = "{{ access_token }}";
+        const refresh = "{{ refresh_token }}";
+
+        // Save them to localStorage (or do whatever the client needs)
+        localStorage.setItem('access_token', access);
+        localStorage.setItem('refresh_token', refresh);
+
+        console.log("JWT Access Token stored successfully!");
+    </script>
+</body>
+</html>

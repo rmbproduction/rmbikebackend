@@ -1,0 +1,12 @@
+{% extends 'admin/change_list.html' %}
+
+{% block content %}
+  <h2>Upload Excel File</h2>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ excel_upload_form.as_p }}
+    <button type="submit">Upload</button>
+  </form>
+  <hr>
+  {{ block.super }}
+{% endblock %}

@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "repairmybike-key",
+      "kty": "oct",
+      "alg": "HS256",
+      "use": "sig",
+      "k": "django-insecure-4ga9@g3zft*$zk1rwdu_au@v!w&zjfd%jodqv92=*s!2_x5r&r"
+    }
+  ]
+} 

@@ -1,0 +1,496 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hello there
+    - good morning
+    - good evening
+    - hey there
+    - greetings
+    - howdy
+    - good day
+    - hi there
+    - what's up
+    - how's it going
+    - morning
+    - afternoon
+    - evening
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you around
+    - see you later
+    - have a good day
+    - take care
+    - until next time
+    - cya
+    - farewell
+    - catch you later
+    - have a good one
+    - bye for now
+    - gotta go
+    - I need to head out
+    - that's all for now
+
+- intent: affirm
+  examples: |
+    - yes
+    - y
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+    - sure
+    - ok
+    - okay
+    - sounds good
+    - that's right
+    - yes please
+    - yep
+    - absolutely
+    - I agree
+    - that works
+    - perfect
+    - right
+    - sounds perfect
+    - I'd like that
+
+- intent: deny
+  examples: |
+    - no
+    - n
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+    - nope
+    - not now
+    - no thanks
+    - I'll pass
+    - not interested
+    - not at this time
+    - I'd rather not
+    - not today
+    - that doesn't work for me
+    - I'm not sure about that
+
+- intent: thank_you
+  examples: |
+    - thanks
+    - thank you
+    - thanks a lot
+    - thank you so much
+    - appreciate it
+    - thanks for the help
+    - that was helpful
+    - you've been very helpful
+    - great service
+    - thanks for the information
+    - that's exactly what I needed
+    - perfect, thank you
+    - cheers
+    - thanks for explaining
+    - appreciate your assistance
+
+- intent: service_inquiry
+  examples: |
+    - What services do you offer?
+    - What kinds of repairs do you do?
+    - Can you tell me about your services?
+    - What bike repairs can you help with?
+    - Do you offer [tune-ups](service_type)?
+    - Can you fix [flat tires](service_type)?
+    - Do you do [brake adjustments](service_type)?
+    - I need information about your bike services
+    - Tell me about your repair options
+    - What maintenance services do you provide?
+    - Do you offer [wheel truing](service_type)?
+    - Can you help with [gear service](service_type)?
+    - I need a [full bike overhaul](service_type)
+    - Do you do [suspension service](service_type)?
+    - What kind of [bike maintenance](service_type) do you provide?
+    - Can you repair [carbon frames](bike_part)?
+    - Do you work on [hydraulic brakes](bike_part)?
+    - Can you service [electronic shifting](bike_part) systems?
+    - Do you fix [ebike motors](bike_part)?
+    - What services do you have for [mountain bikes](bike_type)?
+    - Can you service [road bikes](bike_type)?
+    - Do you repair [kids bikes](bike_type)?
+    - What about [gravel bike](bike_type) maintenance?
+    - Can you help with [tubeless](service_type) setups?
+    - Do you offer [bike fitting](service_type) services?
+
+- intent: pricing_inquiry
+  examples: |
+    - How much do your services cost?
+    - What are your prices?
+    - How much for a [tune-up](service_type)?
+    - What's the cost of [tire replacement](service_type)?
+    - Price for [brake adjustment](service_type)?
+    - How much would it cost to fix my [gears](service_type)?
+    - What's the pricing for your services?
+    - Can you tell me about your rates?
+    - How expensive is a [wheel truing](service_type)?
+    - What do you charge for a [bike overhaul](service_type)?
+    - Give me your price list
+    - Are your services expensive?
+    - How much to repair a [flat tire](service_type)?
+    - What's the price for a [drivetrain](bike_part) cleaning?
+    - How much do you charge for [shifter](bike_part) adjustment?
+    - What's the cost to replace [brake pads](bike_part)?
+    - How much for a [suspension fork](bike_part) service?
+    - What's your rate for [hydraulic brake](bike_part) bleeding?
+    - Price to replace a [cassette](bike_part)?
+    - How much to service [Di2](brand) components?
+    - What does a [bottom bracket](bike_part) replacement cost?
+    - How much to true a [carbon wheel](bike_part)?
+    - Do you have senior or student discounts?
+    - What's your most affordable service option?
+
+- intent: bike_repair_services
+  examples: |
+    - Tell me about your bike repair services
+    - What specific repairs do you offer?
+    - Do you repair mountain bikes?
+    - Can you service road bikes?
+    - Do you work on electric bikes?
+    - What about children's bikes?
+    - Can you help with vintage bicycles?
+    - Do you repair all types of bikes?
+    - Tell me more about your [tune-up](service_type) service
+    - What does a [full service](service_type) include?
+    - Details on [brake](service_type) repairs
+    - What's included in [gear service](service_type)?
+    - Do you service [Shimano](brand) components?
+    - Can you repair [SRAM](brand) groupsets?
+    - Do you work on [Campagnolo](brand) parts?
+    - What about [Bosch](brand) e-bike systems?
+    - Can you service [Fox](brand) suspension?
+    - Do you handle [tubeless](service_type) conversions?
+    - Can you repair [carbon fiber](bike_part) frames?
+    - Do you service [internal gear hubs](bike_part)?
+    - What kind of [wheel](bike_part) repairs do you offer?
+    - Can you install new [components](bike_part)?
+    - Do you build custom wheels?
+    - What's your expertise with [titanium](bike_part) frames?
+
+- intent: booking_appointment
+  examples: |
+    - I want to book an appointment
+    - I need to schedule a repair
+    - Can I book a [tune-up](service_type) for [next Tuesday](date)?
+    - I'd like to make an appointment for [tomorrow](date)
+    - I need my bike fixed [this weekend](date)
+    - Can I schedule a [brake adjustment](service_type) for [Friday](date) at [2pm](time)?
+    - Need to book service for [June 15](date)
+    - How do I schedule a repair?
+    - I want to bring my bike in on [Monday](date)
+    - Can I come in at [10am](time) [tomorrow](date)?
+    - I need to schedule a [wheel truing](service_type)
+    - Is there availability for [next week](date)?
+    - I need my [mountain bike](bike_type) serviced
+    - Can I book a [suspension](bike_part) tune for my bike?
+    - I'd like to schedule a [drivetrain](bike_part) overhaul
+    - Need to book a [safety check](service_type) for my kid's bike
+    - When can I bring in my bike for a [gear adjustment](service_type)?
+    - I need to book a [brake bleed](service_type) ASAP
+    - Can I get my [ebike](bike_type) serviced on [Thursday](date)?
+    - Is there an appointment for [next Monday](date) at [3pm](time)?
+    - I want to make a booking for a full [overhaul](service_type)
+    - Need to schedule [tubeless](service_type) conversion
+
+- intent: check_appointment_status
+  examples: |
+    - What's the status of my appointment?
+    - Has my booking been confirmed?
+    - I want to check my appointment
+    - Can you tell me if my booking is still on?
+    - Is my appointment for [Friday](date) still good?
+    - Has anything changed with my scheduled repair?
+    - I need to confirm my appointment
+    - Is my bike repair still scheduled?
+    - Can you check my booking status?
+    - Has my appointment time changed?
+    - When is my bike supposed to be ready?
+    - Is my bike fixed yet?
+    - Can you tell me if my bike is ready for pickup?
+    - I dropped my bike off yesterday, is it ready?
+    - Has the mechanic looked at my bike yet?
+    - What's the progress on my repair?
+    - Is my service completed?
+    - Can you check if my [tune-up](service_type) is finished?
+    - Has anyone worked on my [mountain bike](bike_type) yet?
+    - I'm calling about the status of my bicycle repair
+    - Do you know when my bike will be ready?
+    - Has the [brake](bike_part) issue been fixed?
+
+- intent: cancel_appointment
+  examples: |
+    - I need to cancel my appointment
+    - Can I cancel my booking?
+    - I want to cancel my scheduled repair
+    - I can't make it to my appointment
+    - Need to cancel my [Friday](date) booking
+    - How do I cancel my service appointment?
+    - I'd like to cancel and reschedule
+    - Cancel my appointment please
+    - I need to cancel my [tune-up](service_type) appointment
+    - Can't come in [tomorrow](date), need to cancel
+    - I want to reschedule my bike service
+    - Need to move my appointment to another day
+    - Something came up, can't make my booking
+    - I have to cancel my [wheel](bike_part) repair appointment
+    - Please cancel my [Wednesday](date) service
+    - I won't be able to bring my bike in as scheduled
+    - Can you remove my booking for [next week](date)?
+    - Need to cancel the [3pm](time) appointment
+    - I have to cancel my [ebike](bike_type) service
+    - Please delete my booking
+
+- intent: subscription_plans
+  examples: |
+    - Tell me about your subscription plans
+    - Do you have maintenance subscriptions?
+    - What membership options do you offer?
+    - I'm interested in a maintenance plan
+    - How much are your subscription services?
+    - What's included in your bike subscriptions?
+    - Do you have monthly service plans?
+    - Tell me about the premium membership
+    - What's the difference between your plans?
+    - Benefits of subscription vs one-time service?
+    - How often can I bring my bike in with a subscription?
+    - Do you offer annual service packages?
+    - I'm interested in regular maintenance options
+    - What does the [basic](service_type) plan cover?
+    - Tell me more about the [premium](service_type) subscription
+    - How does the bike subscription work?
+    - Can I subscribe to regular [tune-ups](service_type)?
+    - What's included in your maintenance memberships?
+    - Do you have a plan for [mountain bikes](bike_type)?
+    - Is there a subscription for [racing bikes](bike_type)?
+    - What's your most popular service plan?
+    - Can I pay annually for a maintenance plan?
+    - Are there any discounts for longer subscriptions?
+
+- intent: contact_info
+  examples: |
+    - What's your phone number?
+    - How can I contact you?
+    - What's your address?
+    - Where are you located?
+    - What's your email?
+    - How do I reach customer service?
+    - Where is your shop?
+    - Do you have a website?
+    - What's the best way to contact you?
+    - Where are you in [downtown](location)?
+    - Are you near [Central Park](location)?
+    - Shop contact details please
+    - How do I get to your store?
+    - What are the directions to your shop?
+    - Do you have multiple locations?
+    - Is there parking at your shop?
+    - What's your shop address?
+    - How can I speak to a mechanic?
+    - Is there public transport near your shop?
+    - Can I contact you through social media?
+    - Do you have a direct line for service?
+    - What's the best time to call?
+
+- intent: opening_hours
+  examples: |
+    - When are you open?
+    - What are your hours?
+    - Are you open on [Sundays](date)?
+    - What time do you close on [Friday](date)?
+    - Are you open [tomorrow](date)?
+    - Do you work on [weekends](date)?
+    - Opening times please
+    - What days are you closed?
+    - How late are you open?
+    - Are you open during holidays?
+    - When does the shop open?
+    - What are your business hours?
+    - Do you close for lunch?
+    - What time do you open on [Saturdays](date)?
+    - Are you open on [public holidays](date)?
+    - What are your [summer](date) hours?
+    - Do you have extended hours during the week?
+    - Are you open early mornings?
+    - What time do you close during the week?
+    - When is the shop least busy?
+    - Are your mechanics available all day?
+
+- intent: emergency_repair
+  examples: |
+    - I have an emergency with my bike
+    - Do you offer emergency repairs?
+    - My bike broke down and I need help now
+    - Is there an emergency service?
+    - I need an urgent repair
+    - Can you fix my bike today?
+    - I have a race tomorrow and my bike is broken
+    - Do you have rush service?
+    - Emergency tune-up needed
+    - My bike is completely unusable
+    - I need immediate assistance
+    - My [brakes](bike_part) failed, I need urgent help
+    - Can you fix a [broken chain](problem) right away?
+    - My [wheel](bike_part) is bent and I need it for commuting
+    - Emergency [flat tire](problem) repair needed
+    - My [derailleur](bike_part) is broken, I need it fixed ASAP
+    - I crashed and need my bike checked immediately
+    - Urgent help - my [shifter](bike_part) is not working
+    - Can you squeeze me in today for a quick fix?
+    - My [ebike](bike_type) battery won't charge, need help now
+    - Critical failure with my [fork](bike_part), need immediate service
+
+- intent: bike_problem_description
+  examples: |
+    - My [brakes](bike_part) are [squeaking](problem) badly
+    - The [chain](bike_part) keeps [falling off](problem)
+    - My [gears](bike_part) are [skipping](problem) when I pedal hard
+    - There's a [weird noise](problem) coming from the [bottom bracket](bike_part)
+    - My [wheel](bike_part) has a [wobble](problem)
+    - The [pedals](bike_part) are [clicking](problem) with each rotation
+    - The [shifter](bike_part) [doesn't click](problem) anymore
+    - My [hydraulic brakes](bike_part) feel [spongy](problem)
+    - The [suspension](bike_part) is [leaking oil](problem)
+    - My [tubeless tire](bike_part) keeps [losing air](problem)
+    - The [headset](bike_part) feels [loose](problem)
+    - My [electronic shifter](bike_part) [stopped working](problem)
+    - The [dropper post](bike_part) [won't go up](problem)
+    - My [di2](brand) [doesn't shift](problem) anymore
+    - The [carbon frame](bike_part) has a [small crack](problem)
+    - My [mountain bike](bike_type) [suspension](bike_part) feels [too stiff](problem)
+    - The [brake pads](bike_part) are [rubbing](problem) on the rotor
+    - My [road bike](bike_type) [handlebars](bike_part) [shake](problem) at high speed
+    - The [ebike](bike_type) [motor](bike_part) [cuts out](problem) randomly
+    - My [freehub](bike_part) makes a [grinding noise](problem)
+    - The [seat post](bike_part) [keeps slipping](problem) down
+    - My [gravel bike's](bike_type) [fork](bike_part) [creaks](problem) when I brake
+
+- intent: how_long_repair
+  examples: |
+    - How long does a tune-up take?
+    - When will my bike be ready?
+    - What's the turnaround time for repairs?
+    - How quickly can you fix a flat tire?
+    - How long does it take to rebuild a wheel?
+    - What's the wait time for a brake adjustment?
+    - How long for a full overhaul?
+    - When can I expect my bike back?
+    - What's your current repair timeframe?
+    - How many days for a drivetrain replacement?
+    - Do you have express service options?
+    - How long will it take to fix my gears?
+    - What's the typical wait for suspension service?
+    - Are repairs done same-day?
+    - How long to replace a bottom bracket?
+    - What's the current shop turnaround time?
+    - How quickly can you fix my bike?
+    - Do you have rush repair options?
+    - How long for a safety check?
+    - When would my bike be ready if I bring it in today?
+
+- intent: ask_expertise
+  examples: |
+    - Are your mechanics certified?
+    - How experienced are your bike technicians?
+    - What training do your mechanics have?
+    - Do you have experts in mountain bikes?
+    - Are you qualified to work on carbon frames?
+    - What's your experience with electronic shifting?
+    - Can your mechanics service suspension forks?
+    - How long have your technicians been working on bikes?
+    - Do you have specialized e-bike technicians?
+    - Are you authorized to service Shimano components?
+    - What certifications do your staff have?
+    - Do you have wheel building experts?
+    - Are your mechanics experienced with hydraulic systems?
+    - What's your expertise with vintage bikes?
+    - Can you service high-end race bikes?
+    - Do you have specific training for carbon repair?
+    - Are you familiar with internal gear hubs?
+    - How skilled are your mechanics with tubeless setups?
+    - What brands are your mechanics trained to service?
+    - Do your technicians attend ongoing training?
+
+- intent: ask_warranty
+  examples: |
+    - Do you offer warranty on repairs?
+    - How long is your service guaranteed?
+    - What happens if the problem comes back after repair?
+    - Do you guarantee your work?
+    - Is there a warranty on parts you install?
+    - What's covered in your repair warranty?
+    - If my bike breaks again after service, will you fix it?
+    - How long do you stand behind your work?
+    - Do you offer any guarantees on tune-ups?
+    - What if I'm not satisfied with the repair?
+    - Is labor covered under warranty?
+    - What's your policy if the fix doesn't last?
+    - Are adjustments covered after service?
+    - Do you have a satisfaction guarantee?
+    - How long is the warranty on a wheel build?
+    - What if the same problem returns after repair?
+    - Are there warranty limitations I should know about?
+    - Do parts come with manufacturer warranties?
+    - What's your warranty policy?
+    - If something was missed during service, will you fix it free?
+
+- intent: bike_maintenance_tips
+  examples: |
+    - How often should I lubricate my chain?
+    - What's the best way to clean my bike?
+    - How can I make my tires last longer?
+    - Tips for maintaining my bicycle
+    - How often should I get a tune-up?
+    - What maintenance can I do at home?
+    - How do I prevent rust on my bike?
+    - What should I check before every ride?
+    - Best practices for bike storage
+    - How to maintain hydraulic brakes
+    - Tips for keeping my gears shifting smoothly
+    - How often should I check tire pressure?
+    - What tools should every cyclist have?
+    - How can I extend my bike's lifespan?
+    - Basic maintenance tasks for beginners
+    - How to tell when my chain needs replacing
+    - Should I clean my bike after riding in rain?
+    - What's the proper way to wash a bike?
+    - How to care for a carbon frame
+    - Maintenance schedule for frequent riders
+    - What's the most overlooked maintenance task?
+    - How to prevent squeaky brakes
+
+- intent: out_of_scope
+  examples: |
+    - I want to order a pizza
+    - What's the weather like today?
+    - Can you tell me a joke?
+    - Who is the president?
+    - I need a loan
+    - Tell me about your car repair services
+    - Do you sell bikes?
+    - Can you recommend a good restaurant?
+    - I want to book a flight
+    - What's the meaning of life?
+    - Will you marry me?
+    - Sing me a song
+    - How tall is Mount Everest?
+    - Who won the World Cup?
+    - Tell me about the stock market
+    - What's your favorite color?
+    - Can you drive me to the airport?
+    - How do I bake a cake?
+    - Write me a poem
+    - Tell me about space exploration 

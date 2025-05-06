@@ -1,0 +1,4 @@
+rasa==3.6.17
+rasa-sdk==3.6.2
+python-dotenv==1.0.1
+requests==2.32.3 

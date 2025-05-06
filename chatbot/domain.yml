@@ -1,0 +1,221 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - affirm
+  - deny
+  - service_inquiry
+  - pricing_inquiry
+  - bike_repair_services
+  - booking_appointment
+  - check_appointment_status
+  - cancel_appointment
+  - subscription_plans
+  - contact_info
+  - opening_hours
+  - emergency_repair
+  - out_of_scope
+  - bike_problem_description
+  - thank_you
+  - how_long_repair
+  - ask_expertise
+  - ask_warranty
+  - bike_maintenance_tips
+
+entities:
+  - service_type
+  - date
+  - time
+  - location
+  - bike_type
+  - bike_part
+  - problem
+  - brand
+
+slots:
+  service_type:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: service_type
+  appointment_date:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: date
+  appointment_time:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: time
+  location:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: location
+  bike_type:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: bike_type
+  bike_part:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: bike_part
+  problem:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: problem
+  brand:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: brand
+
+responses:
+  utter_greet:
+    - text: "Hey there! Welcome to Repair My Bike's virtual assistant. How can I help with your bike today?"
+    - text: "Hi there! I'm your Repair My Bike assistant. What bike-related issue can I help you with today?"
+    - text: "Hello! Great to see you at Repair My Bike. Having trouble with your wheels? I'm here to help!"
+    - text: "Welcome to Repair My Bike! I'm your personal bike mechanic assistant. What's going on with your bike?"
+
+  utter_goodbye:
+    - text: "Goodbye! Hope your bike rides smoothly until next time!"
+    - text: "Thanks for chatting! Remember, we're always here when your bike needs some TLC. Have a great ride!"
+    - text: "See you on the trails! Don't hesitate to reach out if your bike starts acting up again."
+    - text: "Ride safe and enjoy the journey! We're here whenever you need bike help."
+
+  utter_service_inquiry:
+    - text: "We've got all your bike needs covered! Our services include complete tune-ups, tire fixes, brake work, gear adjustments, wheel truing, and comprehensive overhauls. What's your bike struggling with?"
+    - text: "Our bike wizards offer everything from quick fixes to complete overhauls. This includes tune-ups, tire replacements, brake adjustments, gear service, wheel truing, and full bike makeovers. What would your bike appreciate today?"
+    - text: "From squeaky brakes to complete rebuilds, we handle it all! Our most popular services are tune-ups, tire work, brake adjustments, gear service, wheel truing, and comprehensive overhauls. What's your bike telling you it needs?"
+
+  utter_pricing_inquiry:
+    - text: "Our prices reflect the quality care your bike deserves! Basic tune-ups start at $49, while more involved repairs have different rates depending on what your bike needs. Are you curious about pricing for something specific?"
+    - text: "We believe in fair pricing for quality work! Our services range from a $49 basic tune-up to $199 for a complete overhaul, with many options in between. Can I tell you about a specific service price?"
+    - text: "Great question about pricing! Each bike deserves personalized care, so our prices vary by service. Basic tune-ups start at $49, while comprehensive services may cost more. What specific service were you wondering about?"
+
+  utter_bike_repair_services:
+    - text: "Here's what our expert mechanics can do for your bike:\n\n📌 Basic Tune-up ($49): Quick adjustment of brakes and gears, safety inspection\n📌 Standard Tune-up ($79): Comprehensive adjustments, cleaning, and lubrication\n📌 Premium Tune-up ($129): Complete disassembly, deep cleaning, and precision adjustments\n📌 Flat Tire Repair ($25): Replace tube or patch and reinflate\n📌 Brake Adjustment ($35): Restore stopping power and replace pads if needed\n📌 Gear Service ($45): Fine-tune shifting performance\n📌 Wheel Truing ($30): Correct wheel wobbles for a smooth ride\n📌 Full Bike Overhaul ($199): Complete disassembly and rebuild with new cables and housing\n\nWhich service sounds right for your bike's needs?"
+    - text: "Our bike care menu includes:\n\n🔧 Basic Tune-up: $49 - Essential adjustments for reliable riding\n🔧 Standard Tune-up: $79 - Complete adjustment and basic parts cleaning\n🔧 Premium Tune-up: $129 - The works! Comprehensive care for peak performance\n🔧 Flat Tire Repair: $25 - Get rolling again quickly\n🔧 Brake Adjustment: $35 - Safety first with properly functioning brakes\n🔧 Gear Service: $45 - Smooth shifting for enjoyable rides\n🔧 Wheel Truing: $30 - Eliminate wobbles and improve stability\n🔧 Full Bike Overhaul: $199 - Complete rebirth of your trusty steed\n\nWhat can we help your bike with today?"
+
+  utter_booking_appointment:
+    - text: "I'd be happy to help you book the perfect time for your bike service! Our mechanics are available Monday through Saturday, 9 AM to 5 PM. What day and time would work best for you to bring in your bike?"
+    - text: "Let's find the ideal time to get your bike the care it deserves! We're open for service appointments Monday-Saturday, 9 AM-5 PM. Do you have a preferred day of the week that works best for you?"
+    - text: "Getting your bike scheduled is easy! Our shop welcomes repair appointments Monday through Saturday, from 9 AM until 5 PM. When would be most convenient for you to stop by with your bike?"
+
+  utter_appointment_confirmation:
+    - text: "Perfect! I've noted your interest in scheduling a {service_type} on {appointment_date} at {appointment_time}. To lock in this appointment, please use our online booking system or give our friendly team a call at (555) 123-4567. We're looking forward to seeing you and your bike!"
+    - text: "Excellent choice! We've got your {service_type} request for {appointment_date} at {appointment_time}. To confirm this spot, just complete your booking through our website or call us at (555) 123-4567. Your bike will thank you!"
+    - text: "Great timing! I've made a note about your {service_type} interest for {appointment_date} at {appointment_time}. To secure this slot, please finalize your booking online or call our service desk at (555) 123-4567. We're excited to help get your bike running perfectly!"
+
+  utter_check_appointment_status:
+    - text: "I understand you want to check on your appointment status. The quickest way to get that information is to log into your account on our website where you can see all the details. Alternatively, if you have your booking reference number handy, I can look that up for you. You can also always call our team at (555) 123-4567 for immediate assistance."
+    - text: "Checking on your bike's appointment? No problem! You've got three easy options: 1) Log into your account on our website to see real-time status, 2) Provide your booking reference number and I can check for you, or 3) Give our service team a quick call at (555) 123-4567 for the latest update."
+    - text: "I'd be happy to help you check on your bike's service status! You can log into your account on our website to see all the details of your appointment, including current status. If you prefer, just share your booking reference number or call our service desk at (555) 123-4567 for an immediate update."
+
+  utter_cancel_appointment:
+    - text: "I understand plans change! You can cancel your appointment up to 24 hours before your scheduled time without any issue. The easiest way is through your account on our website where you can cancel or reschedule. If you prefer, just call us at (555) 123-4567 and our team will help you out."
+    - text: "No problem at all about needing to cancel! Life happens. You can easily cancel up to 24 hours before your appointment through your online account or by calling us at (555) 123-4567. Would you like to reschedule for another time, or just cancel for now?"
+    - text: "I'm sorry you need to cancel, but we understand! As long as it's at least 24 hours before your scheduled time, there's no cancellation fee. Just log into your account to cancel or reschedule, or give our friendly team a call at (555) 123-4567 for assistance."
+
+  utter_subscription_plans:
+    - text: "Our subscription plans are perfect for riders who want to keep their bikes in top condition year-round!\n\n🌟 Basic Plan: $19/month\n- Monthly basic inspection\n- Priority scheduling\n- 10% off parts\n\n🌟 Standard Plan: $39/month\n- Quarterly full tune-up (a $316 annual value!)\n- Free minor adjustments anytime\n- 15% off parts\n- Priority scheduling\n\n🌟 Premium Plan: $69/month\n- Bi-monthly comprehensive service (a $774 annual value!)\n- Free flat tire repairs\n- 20% off all parts\n- Same-day emergency service when available\n- VIP scheduling\n\nWhich plan sounds like the right fit for your riding style?"
+    - text: "For riders who are serious about maintenance, our subscription plans offer incredible value:\n\n⭐ Basic: $19/month - Perfect for casual riders\n- Monthly safety check and basic adjustments\n- Jump the line with priority booking\n- Save 10% on all parts\n\n⭐ Standard: $39/month - Our most popular plan\n- Quarterly professional tune-ups (saves $79/year vs. pay-as-you-go!)\n- Pop in anytime for quick adjustments at no extra cost\n- Enjoy 15% off all parts\n- Priority appointment scheduling\n\n⭐ Premium: $69/month - For the dedicated cyclist\n- Comprehensive service every two months\n- Never worry about flat tires again - repairs included\n- Substantial 20% discount on all parts\n- Emergency service when you need it most\n- First-class appointment priority\n\nWhich plan matches your cycling habits and needs?"
+
+  utter_contact_info:
+    - text: "You can reach our friendly bike experts through any of these channels:\n\n📞 Phone: (555) 123-4567\n✉️ Email: hello@repairmybike.com\n🏪 Visit us: 123 Cycle Street, Bike Town\n\nOur team is ready to help with any questions or bike concerns you might have!"
+    - text: "Here's how to get in touch with our bike-obsessed team:\n\n📱 Call us: (555) 123-4567\n💻 Email: hello@repairmybike.com\n📍 Shop address: 123 Cycle Street, Bike Town\n\nWe're always happy to chat about all things bicycle!"
+    - text: "Need to reach us? We're available through multiple channels:\n\n☎️ Phone (fastest response): (555) 123-4567\n📧 Email: hello@repairmybike.com\n🚲 In person: 123 Cycle Street, Bike Town\n\nIs there something specific you'd like help with today?"
+
+  utter_opening_hours:
+    - text: "We're here when your bike needs us!\n\n🕘 Monday - Friday: 9 AM - 5 PM\n🕙 Saturday: 10 AM - 4 PM\n🚫 Sunday: Closed (even bike mechanics need to ride!)\n\nPlanning to visit? Our mechanics tend to be less busy earlier in the day if you're looking for a quick consultation."
+    - text: "Our shop hours are designed to accommodate most schedules:\n\n⏰ Weekdays (Mon-Fri): 9 AM to 5 PM\n⏰ Saturday: 10 AM to 4 PM\n⏰ Sunday: We're out riding! (Closed)\n\nPro tip: Tuesday and Wednesday mornings typically have the shortest wait times for walk-in services!"
+    - text: "Here's when you can find our mechanics working their magic:\n\n🔧 Monday through Friday: 9:00 AM - 5:00 PM\n🔧 Saturday: 10:00 AM - 4:00 PM\n🔧 Sunday: Closed for riding and recovery\n\nNeed an urgent repair? Early weekday mornings typically have more immediate availability!"
+
+  utter_emergency_repair:
+    - text: "Bike emergencies are no fun! For urgent repairs, please call our emergency hotline at (555) 987-6543. While we can't guarantee immediate service, we prioritize emergencies whenever possible. Bike race tomorrow? Transportation emergency? Let our team know the situation, and we'll do our absolute best to help!"
+    - text: "Oh no! For bike emergencies, call our dedicated line at (555) 987-6543 right away. While we can't promise immediate service for every situation, we absolutely understand that sometimes bike repairs can't wait. Tell us what's happening, and we'll try our hardest to fit you in - especially if you're stranded or have an important event!"
+    - text: "I understand a bike emergency can really disrupt your plans! Call our emergency service line at (555) 987-6543 immediately. Make sure to explain your situation - whether it's for transportation, an upcoming event, or being stranded. While we can't guarantee immediate service, we always try to accommodate true emergencies when our staff availability allows."
+
+  utter_out_of_scope:
+    - text: "I'm specialized in bike repair topics, so I might not have the answer to that. I can help with repair services, booking appointments, subscription plans, or general bike maintenance questions. What bike-related topic can I assist with today?"
+    - text: "That's a bit outside my wheelhouse (bike pun intended!). I'm your bike repair expert, focused on helping with services, appointments, maintenance plans, and cycling advice. Is there something about your bike I can help with instead?"
+    - text: "I'm better with bikes than other topics! My expertise covers repair services, appointments, maintenance plans, and general bike questions. How about we steer back to something bike-related I can help you with?"
+
+  utter_ask_rephrase:
+    - text: "I didn't quite catch your drift there. Could you rephrase that for me? I want to make sure I help you properly with your bike question."
+    - text: "Sorry, my chain slipped there (bike humor!). Could you phrase that differently so I can better understand what you need help with?"
+    - text: "I want to give you the best answer, but I'm not sure I understood correctly. Mind trying that question again with different wording?"
+
+  utter_thank_you:
+    - text: "You're very welcome! It's always a pleasure to help fellow cycling enthusiasts. Is there anything else I can help with regarding your bike?"
+    - text: "Absolutely my pleasure! We love helping riders keep their wheels spinning smoothly. Anything else you're curious about today?"
+    - text: "No problem at all! That's what I'm here for. Remember, a happy bike means a happy rider! Any other bike questions I can tackle for you?"
+
+  utter_how_long_repair:
+    - text: "Great question about timing! Most basic services like flat repairs or minor adjustments can be completed same-day or within 24 hours. Standard tune-ups typically take 1-2 days, while comprehensive overhauls might need 3-5 days, especially during busy seasons. Need it faster? Ask about our rush service options when booking!"
+    - text: "Repair times vary based on the service and our current schedule. Quick fixes like flat repairs often take just a few hours, basic tune-ups usually 1-2 days, and major overhauls 3-5 days. We're currently on about a [X]-day turnaround for most services. If you're in a hurry, mention that when booking and we'll see what we can do!"
+    - text: "Timing depends on both the service needed and how busy our shop is. As a general guide: simple adjustments and flat fixes are often same-day, tune-ups typically need 1-3 days, and comprehensive work like overhauls can take 3-7 days during peak season. Need your bike back quickly? Let us know when booking and we'll try to accommodate!"
+
+  utter_ask_expertise:
+    - text: "Our mechanics are true bike enthusiasts with professional certification! Each technician completes extensive training and certification from organizations like the Barnett Bicycle Institute or United Bicycle Institute. Many have 10+ years of experience working on everything from vintage road bikes to modern e-bikes and high-end mountain bikes. Is there a specific type of bike you're wondering about?"
+    - text: "You're in expert hands with our team! All our mechanics hold professional certifications, with most certified by the Barnett Bicycle Institute or similar prestigious programs. Our staff has a combined 50+ years of experience, specializing in road bikes, mountain bikes, e-bikes, commuters, and even custom builds. Many are competitive cyclists themselves who understand performance needs firsthand!"
+    - text: "Great question! Our repair team consists of certified bicycle mechanics who've completed rigorous training programs. Many hold advanced certifications in suspension service, electronic systems, and wheel building. Our most senior mechanics have 15+ years of experience, and we regularly attend industry training to stay current with the latest bike technologies and techniques."
+
+  utter_ask_warranty:
+    - text: "We stand behind our work 100%! All our repairs come with a 30-day satisfaction guarantee. If any issue related to our service occurs within that time, we'll fix it at no additional charge. For parts we install, the manufacturer's warranty applies (typically 1-year for most components). We want you completely confident in your bike after we service it!"
+    - text: "Quality work deserves a solid guarantee! Our labor carries a 30-day warranty - if anything we adjusted or repaired doesn't perform correctly within a month, just bring it back for a free fix. Parts we install carry their manufacturer's warranty, usually 1 year for most components. Your satisfaction with our service is our top priority!"
+    - text: "We offer peace of mind with all our services! Our workmanship is guaranteed for 30 days after service - any adjustments or fixes related to our work during that period are completely free. New parts installed during service are covered by their manufacturer warranties (typically 1 year, though some premium components offer longer coverage). We want you riding with complete confidence!"
+
+  utter_bike_maintenance_tips:
+    - text: "Happy to share some bike maintenance wisdom! Here are 5 simple tips to keep your bike happy between services:\n\n1️⃣ Check tire pressure weekly - proper inflation prevents flats and improves efficiency\n2️⃣ Keep your chain clean and lubricated - wipe it down and re-lube every 2-3 rides in dry conditions, more often when wet\n3️⃣ Inspect brake pads monthly for wear - replace when the grooves are less than 1mm deep\n4️⃣ Wipe down your frame after wet or muddy rides to prevent corrosion\n5️⃣ Listen for new noises - they're often early warning signs of needed maintenance\n\nWould you like more specific tips for your type of bike?"
+    - text: "Preventive maintenance makes for happy riding! Here are my top bike care tips:\n\n🔹 Maintain proper tire pressure (check the sidewall for recommended PSI)\n🔹 Clean and lube your chain every 100-200 miles of riding\n🔹 Keep bolts tight - do a quick bolt check monthly (especially stem and seat post)\n🔹 Store your bike indoors away from weather elements when possible\n🔹 Schedule a professional tune-up at least annually, more for frequent riders\n\nAny specific maintenance concerns with your bike I can address?"
+    - text: "Great riders know good maintenance matters! Here are pro tips to extend your bike's life:\n\n🚲 Learn the ABC quick check before rides: Air (tire pressure), Brakes, Chain/Cranks\n🚲 Clean your bike regularly - especially after wet/muddy conditions\n🚲 Keep moving parts lubricated (chain, derailleurs, pivot points)\n🚲 Check for loose components by listening for rattles during rides\n🚲 Inspect tires for embedded debris or cuts that could cause flats\n\nDo you follow a maintenance routine already?"
+
+  utter_bike_problem_description:
+    - text: "That's definitely something we can fix! Based on what you've described, it sounds like {problem} involving your {bike_part}. This is actually a common issue we see in our shop, especially with {bike_type} bikes. Our mechanics are very familiar with this repair. Would you like to schedule a time to bring your bike in for service?"
+    - text: "Thanks for that detailed description! I recognize the {problem} you're experiencing with your {bike_part}. This is something our technicians see regularly on {bike_type} bikes and can definitely resolve. Would you like to know more about what might be causing this issue, or would you prefer to book a repair appointment?"
+    - text: "I appreciate you explaining the problem so clearly. The {problem} with your {bike_part} is definitely something we can address. This is actually a fairly common issue, particularly on {bike_type} bikes or those with similar components. Our mechanics have specific training for these repairs. Would you like an estimate for this repair?"
+
+actions:
+  - utter_greet
+  - utter_goodbye
+  - utter_service_inquiry
+  - utter_pricing_inquiry
+  - utter_bike_repair_services
+  - utter_booking_appointment
+  - utter_appointment_confirmation
+  - utter_check_appointment_status
+  - utter_cancel_appointment
+  - utter_subscription_plans
+  - utter_contact_info
+  - utter_opening_hours
+  - utter_emergency_repair
+  - utter_out_of_scope
+  - utter_ask_rephrase
+  - utter_thank_you
+  - utter_how_long_repair
+  - utter_ask_expertise
+  - utter_ask_warranty
+  - utter_bike_maintenance_tips
+  - utter_bike_problem_description
+  - action_provide_bike_specific_info
+  - action_provide_maintenance_schedule
+  - action_suggest_appointment_times
+  - action_estimate_repair_cost
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true 

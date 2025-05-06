@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - .:/app
+    networks:
+      - repairmybike-network
+
+  api-gateway:
+    image: devopsfaith/krakend:2.3
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api-gateway/config:/etc/krakend
+    environment:
+      - FC_ENABLE=1
+      - FC_SETTINGS=/etc/krakend/settings
+      - FC_PARTIALS=/etc/krakend/partials
+      - FC_TEMPLATES=/etc/krakend/templates
+      - API_GATEWAY_HOST=http://api:8000
+      - API_GATEWAY_DEBUG=${DEBUG}
+      - API_GATEWAY_TIMEOUT=3000
+      - API_GATEWAY_CACHE_TTL=300
+      - API_GATEWAY_MAX_RATE=100
+      - API_GATEWAY_JWT_EXPIRY=3600
+    depends_on:
+      - api
+    networks:
+      - repairmybike-network
+
+networks:
+  repairmybike-network:
+    driver: bridge 

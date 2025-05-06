@@ -1,0 +1,11 @@
+{
+  "environment_variables": {
+    "port": 8080,
+    "host": "{{ .Env.API_GATEWAY_HOST }}",
+    "debug": "{{ .Env.API_GATEWAY_DEBUG }}",
+    "timeout": "{{ .Env.API_GATEWAY_TIMEOUT }}",
+    "cache_ttl": "{{ .Env.API_GATEWAY_CACHE_TTL }}",
+    "max_rate": "{{ .Env.API_GATEWAY_MAX_RATE }}",
+    "jwt_expiry": "{{ .Env.API_GATEWAY_JWT_EXPIRY }}"
+  }
+} 
