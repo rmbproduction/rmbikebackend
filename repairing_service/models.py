@@ -59,10 +59,11 @@ class Service(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2)
     duration = models.CharField(max_length=50)
     warranty = models.CharField(max_length=100)
-    recommended = models.CharField(default=False)
+    recommended = models.CharField(max_length=100, blank=True, null=True)
     manufacturers = models.ManyToManyField('vehicle.Manufacturer', related_name='services')
     vehicles_models = models.ManyToManyField('vehicle.VehicleModel', related_name='services')
     features = models.ManyToManyField(Feature, related_name='services')
+    image = models.ImageField(upload_to='service_images/', null=True, blank=True)
     
     def save(self, *args, **kwargs):
         if not self.slug:

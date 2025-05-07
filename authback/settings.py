@@ -34,6 +34,7 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.railway.app',
+    'repairmybike.in',
 ]
 
 
@@ -185,11 +186,7 @@ else:
             db_host = config('DATABASE_HOST', default='localhost')
             db_port = config('DATABASE_PORT', default='5432')
             
-            print(f"Database connection details:")
-            print(f"Name: {db_name}")
-            print(f"User: {db_user}")
-            print(f"Host: {db_host}")
-            print(f"Port: {db_port}")
+        
             
             DATABASES = {
                 "default": {

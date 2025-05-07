@@ -31,13 +31,22 @@ class FeatureSerializer(serializers.ModelSerializer):
 
 class ServiceSerializer(serializers.ModelSerializer):
     features = FeatureSerializer(many=True, read_only=True)
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
         fields = [
             'id', 'name', 'slug', 'description', 'base_price', 'duration', 'warranty',
-            'recommended', 'category', 'manufacturers', 'vehicles_models', 'features'
+            'recommended', 'category', 'manufacturers', 'vehicles_models', 'features', 'image', 'image_url'
         ]
+    
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
 class ServiceCategorySerializer(serializers.ModelSerializer):
     services = ServiceSerializer(many=True, read_only=True)
