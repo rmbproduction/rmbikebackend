@@ -238,8 +238,33 @@ class PasswordResetConfirmView(generics.GenericAPIView):
             # Log the password reset
             logger.info(f"Password reset successful for user {user.email}")
 
+            # Determine the correct frontend URL
+            environment = os.environ.get('ENVIRONMENT', 'development')
+            
+            # For production, always use the production domain
+            if environment == 'production':
+                frontend_url = 'https://repairmybike.in'
+            else:
+                # For development, try to determine frontend URL from headers
+                referer = request.headers.get('Referer')
+                if referer:
+                    # Extract domain from referer
+                    from urllib.parse import urlparse
+                    parsed_uri = urlparse(referer)
+                    frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                else:
+                    # Fallback to settings FRONTEND_URL
+                    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
+            
+            # Safety check for production
+            if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
+                frontend_url = 'https://repairmybike.in'
+                
+            login_url = f"{frontend_url}/login-signup"
+
             return Response({
-                "message": "Password has been reset successfully"
+                "message": "Password has been reset successfully",
+                "redirect_url": login_url
             }, status=status.HTTP_200_OK)
 
         except User.DoesNotExist:
@@ -658,7 +683,7 @@ class VerifyEmailView(APIView):
                     if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
                         frontend_url = 'https://repairmybike.in'
                     
-                    login_url = f"{frontend_url}/login"
+                    login_url = f"{frontend_url}/login-signup"
                     
                     return Response({
                         "message": "Email verified successfully. You can now log in with your credentials.",
@@ -692,7 +717,7 @@ class VerifyEmailView(APIView):
                 if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
                     frontend_url = 'https://repairmybike.in'
                 
-                login_url = f"{frontend_url}/login"
+                login_url = f"{frontend_url}/login-signup"
                 
                 return Response({
                     "message": "Email already verified. You can log in with your credentials.",
