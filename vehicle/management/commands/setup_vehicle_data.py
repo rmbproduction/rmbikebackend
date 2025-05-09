@@ -35,7 +35,8 @@ class Command(BaseCommand):
                 'CB Hornet',
                 'CB300R',
                 'CB350',
-            ],
+            ,
+                'discover'],
             'Scooter': [
                 'Activa 6G',
                 'Dio',

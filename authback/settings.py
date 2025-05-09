@@ -180,7 +180,7 @@ else:
     
     if DB_USE_POSTGRES:
         try:
-            db_name = config('DATABASE_NAME', default='rmbdb')
+            db_name = config('DATABASE_NAME', default='rmbdev')
             db_user = config('DATABASE_USER', default='postgres')
             db_password = config('DATABASE_PASSWORD', default='password')
             db_host = config('DATABASE_HOST', default='localhost')
