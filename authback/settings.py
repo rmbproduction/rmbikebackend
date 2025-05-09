@@ -19,6 +19,24 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Get host configuration from environment
+HOST_DOMAIN = config('HOST_DOMAIN', default='localhost:8000')
+HOST_PROTOCOL = config('HOST_PROTOCOL', default='http')
+
+# Frontend URL configuration
+FRONTEND_URL = config('FRONTEND_URL', default=f"{HOST_PROTOCOL}://{HOST_DOMAIN.replace(':8000', ':5173')}")
+# In production, default to repairmybike.in
+if os.environ.get('ENVIRONMENT', 'development') == 'production':
+    # Force production URL in production environment
+    # This will override any FRONTEND_URL that might contain localhost
+    FRONTEND_URL = config('FRONTEND_URL', default='https://repairmybike.in')
+    # Add a safety check to ensure we never use localhost in production
+    if 'localhost' in FRONTEND_URL or '127.0.0.1' in FRONTEND_URL:
+        FRONTEND_URL = 'https://repairmybike.in'
+
+# Print the FRONTEND_URL for debugging
+print(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'development')}")
+print(f"FRONTEND_URL: {FRONTEND_URL}")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -27,14 +45,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-4ga9@g3zft*$zk1rwdu_au@v!w&zjfd%jodqv92=*s!2_x5r&r')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('ENVIRONMENT', 'development') != 'production'
 
+# Dynamic allowed hosts based on HOST_DOMAIN
 ALLOWED_HOSTS = [
+    HOST_DOMAIN,
     'repairmybike.up.railway.app',
     'localhost',
     '127.0.0.1',
     '.railway.app',
     'repairmybike.in',
+    'www.repairmybike.in',
 ]
 
 
@@ -90,21 +111,20 @@ SERVICE_PORTS = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    f"http://localhost:{SERVICE_PORTS['FRONTEND_VITE']}",  # Vite
-    f"http://127.0.0.1:{SERVICE_PORTS['FRONTEND_VITE']}",
-    f"http://localhost:{SERVICE_PORTS['FRONTEND_REACT']}",  # React
-    f"http://127.0.0.1:{SERVICE_PORTS['FRONTEND_REACT']}",
-    f"http://localhost:{SERVICE_PORTS['DJANGO_SERVER']}",  # Django
-    f"http://127.0.0.1:{SERVICE_PORTS['DJANGO_SERVER']}",
-    f"http://localhost:{SERVICE_PORTS['API_GATEWAY']}",  # API Gateway
-    f"http://127.0.0.1:{SERVICE_PORTS['API_GATEWAY']}",
-    "https://repairmybike.up.railway.app",  # Railway.app domain
-    "http://localhost:5173",  # Explicit Vite port
+    f"{HOST_PROTOCOL}://{HOST_DOMAIN}",
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:3000",  # React dev server
+    "https://repairmybike.up.railway.app",
+    "https://repairmybike.vercel.app",
+    "https://repair-my-bike.vercel.app",
+    "https://rmbfrontend.vercel.app",
+    "https://repairmybike.in",
+    "https://www.repairmybike.in",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-# For development only - in production, specify exact origins
-CORS_ALLOW_ALL_ORIGINS = DEBUG  
+# Only allow all origins in development, not in production
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('ENVIRONMENT', 'development') == 'development'
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -286,17 +306,22 @@ AUTH_USER_MODEL = 'accounts.User'
 LOGIN_REDIRECT_URL = '/login/success/'
 
 
-# Security Settings - Disabled for development
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Commented out for development
+# Security Settings - Enable in production
+SECURE_SSL_REDIRECT = os.environ.get('ENVIRONMENT', 'development') == 'production'
+SESSION_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
+CSRF_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Uncommented for Railway deployment
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 CSRF_TRUSTED_ORIGINS = [
     f"http://localhost:{SERVICE_PORTS['FRONTEND_VITE']}",
     'https://repairmybike.up.railway.app',
+    'https://repairmybike.vercel.app',
+    'https://repair-my-bike.vercel.app',
+    'https://rmbfrontend.vercel.app',
+    'https://repairmybike.in',
+    'https://www.repairmybike.in',
 ]
 # Rate Limiting Settings
 RATELIMIT_ENABLE = True

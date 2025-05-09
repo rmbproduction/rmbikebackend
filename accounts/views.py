@@ -139,10 +139,39 @@ class PasswordResetView(generics.GenericAPIView):
             token = get_random_string(64)
             cache.set(f'password_reset_{token}', user.pk, timeout=3600)  # 1 hour expiry
 
-            # Create reset URL
-            reset_url = request.build_absolute_uri(
-                f'/api/accounts/password-reset/{token}/'
-            )
+            # Get the environment
+            environment = os.environ.get('ENVIRONMENT', 'development')
+            
+            # Generate reset URL
+            # For production, always use the production domain
+            if environment == 'production':
+                frontend_url = 'https://repairmybike.in'
+            else:
+                # For development, use the origin header from the request if available
+                origin = request.headers.get('Origin')
+                if origin and 'localhost' in origin:
+                    # Use the origin as frontend URL if it contains localhost
+                    frontend_url = origin
+                else:
+                    # Extract domain from referer header if available
+                    referer = request.headers.get('Referer')
+                    if referer:
+                        # Extract domain from referer (http://domain or https://domain)
+                        from urllib.parse import urlparse
+                        parsed_uri = urlparse(referer)
+                        frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                    else:
+                        # Fallback to settings FRONTEND_URL
+                        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
+            
+            # Safety check to prevent localhost URLs in production
+            if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
+                frontend_url = 'https://repairmybike.in'
+                
+            reset_url = f"{frontend_url}/reset-password/{token}"
+            
+            # Log the reset URL (without token for security)
+            logger.info(f"Generated password reset URL with frontend_url: {frontend_url}")
 
             # Send reset email
             send_mail(
@@ -495,9 +524,38 @@ class SignupView(generics.GenericAPIView):
                 token=token
             )
             
-            # Generate verification URL using frontend URL
-            frontend_url = "http://localhost:5173"  # You might want to move this to settings
+            # Get the environment
+            environment = os.environ.get('ENVIRONMENT', 'development')
+            
+            # Generate verification URL
+            # For production, always use the production domain
+            if environment == 'production':
+                frontend_url = 'https://repairmybike.in'
+            else:
+                # For development, use the origin header from the request if available
+                origin = request.headers.get('Origin')
+                if origin and 'localhost' in origin:
+                    # Use the origin as frontend URL if it contains localhost
+                    frontend_url = origin
+                else:
+                    # Extract domain from referer header if available
+                    referer = request.headers.get('Referer')
+                    if referer:
+                        # Extract domain from referer (http://domain or https://domain)
+                        from urllib.parse import urlparse
+                        parsed_uri = urlparse(referer)
+                        frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                    else:
+                        # Fallback to settings FRONTEND_URL
+                        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
+            
+            # Safety check to prevent localhost URLs in production
+            if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
+                frontend_url = 'https://repairmybike.in'
+                
             verification_url = f"{frontend_url}/verify-email/{token}"
+            
+            logger.info(f"Generated verification URL with frontend_url: {frontend_url}")
             
             # Send verification email using EMAIL_HOST_USER as sender
             send_mail(
@@ -514,7 +572,7 @@ If you did not create an account, please ignore this email.
 
 Best regards,
 The Repair My Bike Team""",
-                from_email=settings.EMAIL_HOST_USER,  # Changed from DEFAULT_FROM_EMAIL to EMAIL_HOST_USER
+                from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[user.email],
                 fail_silently=False,
             )
@@ -577,14 +635,64 @@ class VerifyEmailView(APIView):
                     
                     logger.info(f"Email verified for user: {user.email}")
                     
+                    # Get the environment
+                    environment = os.environ.get('ENVIRONMENT', 'development')
+                    
+                    # Generate login URL
+                    # For production, always use the production domain
+                    if environment == 'production':
+                        frontend_url = 'https://repairmybike.in'
+                    else:
+                        # For development, try to determine frontend URL from headers
+                        referer = request.headers.get('Referer')
+                        if referer:
+                            # Extract domain from referer (http://domain or https://domain)
+                            from urllib.parse import urlparse
+                            parsed_uri = urlparse(referer)
+                            frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                        else:
+                            # Fallback to settings FRONTEND_URL
+                            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
+                    
+                    # Safety check to prevent localhost URLs in production
+                    if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
+                        frontend_url = 'https://repairmybike.in'
+                    
+                    login_url = f"{frontend_url}/login"
+                    
                     return Response({
                         "message": "Email verified successfully. You can now log in with your credentials.",
                         "status": "success",
                         "verified": True,
                         "user": {
                             "email": user.email,
-                        }
+                        },
+                        "redirect_url": login_url
                     }, status=status.HTTP_200_OK)
+                
+                # Get the environment
+                environment = os.environ.get('ENVIRONMENT', 'development')
+                
+                # Generate login URL using same logic as above
+                if environment == 'production':
+                    frontend_url = 'https://repairmybike.in'
+                else:
+                    # For development, try to determine frontend URL from headers
+                    referer = request.headers.get('Referer')
+                    if referer:
+                        # Extract domain from referer (http://domain or https://domain)
+                        from urllib.parse import urlparse
+                        parsed_uri = urlparse(referer)
+                        frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                    else:
+                        # Fallback to settings FRONTEND_URL
+                        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
+                
+                # Safety check to prevent localhost URLs in production
+                if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
+                    frontend_url = 'https://repairmybike.in'
+                
+                login_url = f"{frontend_url}/login"
                 
                 return Response({
                     "message": "Email already verified. You can log in with your credentials.",
@@ -592,7 +700,8 @@ class VerifyEmailView(APIView):
                     "verified": True,
                     "user": {
                         "email": user.email,
-                    }
+                    },
+                    "redirect_url": login_url
                 }, status=status.HTTP_200_OK)
                 
             except User.DoesNotExist:
