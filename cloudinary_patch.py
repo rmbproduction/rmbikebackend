@@ -35,7 +35,7 @@ def setup_cloudinary():
     
     # Directly create storage instance using import_string
     try:
-        CloudinaryMediaStorage = import_string('cloudinary_storage.storage.MediaCloudinaryStorage')
+        CloudinaryMediaStorage = import_string('django_cloudinary_storage.storage.MediaCloudinaryStorage')
         
         # Create a test CloudinaryMediaStorage instance
         cloudinary_storage = CloudinaryMediaStorage()

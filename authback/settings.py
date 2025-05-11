@@ -47,7 +47,7 @@ CLOUDINARY_STORAGE = {
 }
 
 # Always set the default file storage to Cloudinary
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+DEFAULT_FILE_STORAGE = 'django_cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Get host configuration from environment
 HOST_DOMAIN = config('HOST_DOMAIN', default='localhost:8000')
@@ -110,7 +110,7 @@ INSTALLED_APPS = [
     'subscription_plan',
     # Add Cloudinary apps directly
     'cloudinary',
-    'cloudinary_storage',
+    'django_cloudinary_storage',
     'tools.image_optimizer.apps.ImageOptimizerConfig',
 ]
 
