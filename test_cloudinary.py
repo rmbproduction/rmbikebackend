@@ -1,5 +1,38 @@
+import sys
+import pkg_resources
+
+print(f"Python version: {sys.version}")
+print(f"Python path: {sys.executable}")
+print("\nInstalled packages:")
+
+# List all installed packages
+for package in pkg_resources.working_set:
+    print(f"- {package.key} {package.version}")
+
+print("\nChecking for specific packages:")
+packages_to_check = ['cloudinary', 'django-cloudinary-storage', 'django_cloudinary_storage']
+
+for package in packages_to_check:
+    try:
+        dist = pkg_resources.get_distribution(package)
+        print(f"✓ {package} is installed (version: {dist.version})")
+    except pkg_resources.DistributionNotFound:
+        print(f"✗ {package} is NOT installed")
+
+print("\nTrying imports:")
+try:
+    import cloudinary
+    print("✓ Successfully imported cloudinary")
+except ImportError as e:
+    print(f"✗ Failed to import cloudinary: {str(e)}")
+
+try:
+    import django_cloudinary_storage
+    print("✓ Successfully imported django_cloudinary_storage")
+except ImportError as e:
+    print(f"✗ Failed to import django_cloudinary_storage: {str(e)}")
+
 import os
-import cloudinary
 import cloudinary.uploader
 from decouple import config
 

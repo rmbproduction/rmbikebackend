@@ -46,8 +46,8 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': CLOUDINARY_API_SECRET,
 }
 
-# Always set the default file storage to Cloudinary
-DEFAULT_FILE_STORAGE = 'django_cloudinary_storage.storage.MediaCloudinaryStorage'
+# Temporarily use default FileSystemStorage
+# DEFAULT_FILE_STORAGE = 'django_cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Get host configuration from environment
 HOST_DOMAIN = config('HOST_DOMAIN', default='localhost:8000')
@@ -108,9 +108,8 @@ INSTALLED_APPS = [
     'vehicle',
     'repairing_service',
     'subscription_plan',
-    # Add Cloudinary apps directly
+    # Add Cloudinary app only
     'cloudinary',
-    'django_cloudinary_storage',
     'tools.image_optimizer.apps.ImageOptimizerConfig',
 ]
 
