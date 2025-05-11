@@ -21,15 +21,36 @@ from django.conf import settings
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.generic import RedirectView
 from accounts.views import accounts_root_view
+from cloudinary_patch import setup_cloudinary
+from django.http import JsonResponse
+
+# Try to set up Cloudinary explicitly
+setup_cloudinary()
+
+def cloudinary_test(request):
+    """Test endpoint to check Cloudinary connection"""
+    from django.core.files.storage import default_storage
+    from cloudinary_patch import setup_cloudinary
+    
+    # Try to set up Cloudinary again
+    success = setup_cloudinary()
+    
+    return JsonResponse({
+        'cloudinary_setup_success': success,
+        'current_storage': str(default_storage.__class__),
+        'is_cloudinary': 'cloudinary' in str(default_storage.__class__).lower(),
+        'media_url': settings.MEDIA_URL,
+    })
 
 urlpatterns = [
-    path('', RedirectView.as_view(url='/api/accounts/', permanent=False), name='root'),  # Add this line
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls')),
     path('api/vehicle/', include('vehicle.urls')),
-    path('api/repairing_service/', include('repairing_service.urls')),
     path('api/marketplace/', include('marketplace.urls')),
-    path('api/subscription/', include('subscription_plan.urls')),  # Add subscription plan URLs
+    path('api/repairing-service/', include('repairing_service.urls')),
+    path('api/subscription/', include('subscription_plan.urls')),  # Keep the original subscription URL
+    path('test-cloudinary/', cloudinary_test, name='test-cloudinary'),
+    path('', RedirectView.as_view(url='/admin/')),
 ]
 
 if settings.DEBUG:

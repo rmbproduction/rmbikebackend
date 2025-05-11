@@ -15,9 +15,39 @@ from decouple import config
 from datetime import timedelta  # Add this import for JWT settings
 import os
 import dj_database_url
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load Cloudinary configuration early
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+# Get Cloudinary credentials
+CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='dz81bjuea')
+CLOUDINARY_API_KEY = config('CLOUDINARY_API_KEY', default='')
+CLOUDINARY_API_SECRET = config('CLOUDINARY_API_SECRET', default='')
+
+# Configure Cloudinary directly
+cloudinary.config(
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
+)
+
+# Add required CLOUDINARY_STORAGE settings
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
+    'API_KEY': CLOUDINARY_API_KEY,
+    'API_SECRET': CLOUDINARY_API_SECRET,
+}
+
+# Always set the default file storage to Cloudinary
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Get host configuration from environment
 HOST_DOMAIN = config('HOST_DOMAIN', default='localhost:8000')
@@ -77,12 +107,11 @@ INSTALLED_APPS = [
     'django_filters',
     'vehicle',
     'repairing_service',
-    'subscription_plan'
-
-      # New app for subscription-related functionality
-    # 'channels',  # Add Django Channels for WebSocket support - Temporarily commented out
-    
-    # 'django_extensions'
+    'subscription_plan',
+    # Add Cloudinary apps directly
+    'cloudinary',
+    'cloudinary_storage',
+    'tools.image_optimizer.apps.ImageOptimizerConfig',
 ]
 
 MIDDLEWARE = [
@@ -96,6 +125,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'accounts.middleware.RoleMiddleware',  # Add this line
+    'tools.middleware.CacheControlMiddleware',  # Add cache control middleware
 ]
 
 # Service Ports Configuration
@@ -294,6 +324,11 @@ MEDIA_URL = '/media/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Image optimization settings
+ENABLE_AUTO_OPTIMIZATION = config('ENABLE_AUTO_OPTIMIZATION', default=True, cast=bool)
+IMAGE_OPTIMIZATION_QUALITY = config('IMAGE_OPTIMIZATION_QUALITY', default=85, cast=int)
+IMAGE_OPTIMIZATION_MAX_SIZE = config('IMAGE_OPTIMIZATION_MAX_SIZE', default=1920, cast=int)
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -331,12 +366,11 @@ RATELIMIT_BLOCK = True
 RATELIMIT_VIEW = 'accounts.views.rate_limit_view'
 
 # Cache Configuration
+# Determine if we should use Redis based on environment or explicit config
+USE_REDIS = config('USE_REDIS', default=os.environ.get('ENVIRONMENT') == 'production', cast=bool)
+
+# Set up cache based on Redis availability
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
-} if not config('USE_REDIS', default=False, cast=bool) else {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': config('REDIS_PUBLIC_URL', default=f'redis://127.0.0.1:{SERVICE_PORTS["REDIS"]}/1'),
@@ -352,11 +386,16 @@ CACHES = {
         },
         'KEY_PREFIX': 'authback',
     }
+} if USE_REDIS else {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
 }
 
 # Cache timeout settings
-CACHE_TTL = 60 * 5  # Cache timeout of 5 minutes
-CACHE_MIDDLEWARE_SECONDS = 60 * 5  # Cache middleware timeout of 5 minutes
+CACHE_TTL = 60 * 15  # Cache timeout increased to 15 minutes
+CACHE_MIDDLEWARE_SECONDS = 60 * 15  # Cache middleware timeout increased to 15 minutes
 
 # Redis as the cache backend
 DJANGO_REDIS_IGNORE_EXCEPTIONS = True

@@ -36,7 +36,8 @@ class Command(BaseCommand):
                 'CB300R',
                 'CB350',
             ,
-                'discover'],
+                'discover',
+                'shine'],
             'Scooter': [
                 'Activa 6G',
                 'Dio',
@@ -80,8 +81,17 @@ class Command(BaseCommand):
                         )
                         self.stdout.write(f'Created {manufacturer.name} {model_name} ({vehicle_type_name})')
 
-        # Create vehicle models for each manufacturer
+        
+        bajaj_models = {
+            'Bike': ['dua12',
+                'bugati',
+                'discover23'],
+            'Scooter': [],
+        }
+
+# Create vehicle models for each manufacturer
         create_vehicle_models(honda, honda_models)
+        create_vehicle_models(bajaj, bajaj_models)
         create_vehicle_models(hero, hero_models)
 
         self.stdout.write(self.style.SUCCESS('Vehicle data setup completed successfully!')) 

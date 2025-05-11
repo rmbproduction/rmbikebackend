@@ -1,9 +1,12 @@
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.http import JsonResponse
+from django.core.files.storage import default_storage
+from django.conf import settings
 from .models import VehicleType, Manufacturer, VehicleModel, UserVehicle
 from .serializers import (
     VehicleTypeSerializer, ManufacturerSerializer, VehicleModelSerializer, UserVehicleSerializer
@@ -11,16 +14,33 @@ from .serializers import (
 from .services import VehicleService
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import VehicleModelFilter
+from tools.cache_utils import cache_api_response, CACHE_TIMES
 
 class VehicleTypeViewSet(viewsets.ModelViewSet):
     queryset = VehicleType.objects.all()
     serializer_class = VehicleTypeSerializer
     permission_classes = [AllowAny]
+    
+    @cache_api_response(timeout=CACHE_TIMES['STATIC'], key_prefix="vehicle_types")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @cache_api_response(timeout=CACHE_TIMES['STATIC'], key_prefix="vehicle_type")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 class ManufacturerViewSet(viewsets.ModelViewSet):
     queryset = Manufacturer.objects.all()
     serializer_class = ManufacturerSerializer
     permission_classes = [AllowAny]
+    
+    @cache_api_response(timeout=CACHE_TIMES['STATIC'], key_prefix="manufacturers")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @cache_api_response(timeout=CACHE_TIMES['STATIC'], key_prefix="manufacturer")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 class VehicleModelViewSet(viewsets.ModelViewSet):
     queryset = VehicleModel.objects.all()
@@ -40,6 +60,14 @@ class VehicleModelViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(vehicle_type_id=vehicle_type_id)
             
         return queryset.select_related('manufacturer', 'vehicle_type')
+    
+    @cache_api_response(timeout=CACHE_TIMES['LOOKUP'], key_prefix="vehicle_models")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @cache_api_response(timeout=CACHE_TIMES['LOOKUP'], key_prefix="vehicle_model")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 class UserVehicleViewSet(viewsets.ModelViewSet):
     queryset = UserVehicle.objects.all()
@@ -66,6 +94,7 @@ class UserVehicleViewSet(viewsets.ModelViewSet):
         return user_vehicle
 
     @action(detail=True, methods=['get'])
+    @cache_api_response(timeout=CACHE_TIMES['USER'], key_prefix="vehicle_details")
     def full_details(self, request, pk=None):
         """Get combined details from both vehicle models"""
         user_vehicle = self.get_object()
@@ -76,3 +105,20 @@ class UserVehicleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         return Response(details)
+
+@api_view(['GET'])
+def check_cloudinary(request):
+    """Test view to check Cloudinary configuration"""
+    import cloudinary
+    
+    # Get the Cloudinary configuration directly from cloudinary package
+    config = cloudinary.config()
+    storage_class = str(default_storage.__class__)
+    
+    return JsonResponse({
+        'storage_class': storage_class,
+        'is_cloudinary': 'cloudinary' in storage_class.lower(),
+        'cloud_name': config.cloud_name,
+        'credentials_configured': bool(config.cloud_name and config.api_key and config.api_secret),
+        'default_storage': settings.DEFAULT_FILE_STORAGE,
+    })
