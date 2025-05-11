@@ -1,18 +1,37 @@
 import os
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-from django.conf import settings
-from decouple import config
-from django.core.files.storage import default_storage
-from django.utils.module_loading import import_string
+import sys
+import importlib
 
 print("Cloudinary patch script running...")
+
+# First check if cloudinary is available
+try:
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    cloudinary_available = True
+except ImportError:
+    cloudinary_available = False
+    print("Cloudinary package not available, skipping setup")
+    sys.exit(0)
+
+try:
+    from django.conf import settings
+    from decouple import config
+    from django.core.files.storage import default_storage
+    from django.utils.module_loading import import_string
+except ImportError as e:
+    print(f"Required dependency not available: {e}")
+    sys.exit(0)
 
 def setup_cloudinary():
     """
     Force Cloudinary setup and correct the storage backend
     """
+    if not cloudinary_available:
+        print("Cloudinary is not available. Skipping setup.")
+        return False
+        
     # Configure Cloudinary
     cloud_name = config('CLOUDINARY_CLOUD_NAME', default='dz81bjuea')
     api_key = config('CLOUDINARY_API_KEY', default='')
@@ -35,7 +54,12 @@ def setup_cloudinary():
     
     # Directly create storage instance using import_string
     try:
-        CloudinaryMediaStorage = import_string('django_cloudinary_storage.storage.MediaCloudinaryStorage')
+        # Try the new package name first
+        try:
+            CloudinaryMediaStorage = import_string('django_cloudinary_storage.storage.MediaCloudinaryStorage')
+        except ImportError:
+            # Fall back to old name
+            CloudinaryMediaStorage = import_string('cloudinary_storage.storage.MediaCloudinaryStorage')
         
         # Create a test CloudinaryMediaStorage instance
         cloudinary_storage = CloudinaryMediaStorage()

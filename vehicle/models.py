@@ -1,7 +1,19 @@
 from django.db import models
 from accounts.models import UserProfile
 import cloudinary.uploader
-from cloudinary.models import CloudinaryField
+
+# Try to import CloudinaryField, fall back to FileField if unavailable
+try:
+    from cloudinary.models import CloudinaryField
+except ImportError:
+    # Create a placeholder CloudinaryField that's actually just a FileField
+    # This allows models to load even if Cloudinary isn't installed
+    from django.db.models.fields.files import FileField
+    class CloudinaryField(FileField):
+        def __init__(self, *args, **kwargs):
+            # Remove Cloudinary-specific arguments
+            folder = kwargs.pop('folder', None)
+            super().__init__(*args, **kwargs)
 
 class VehicleType(models.Model):
     name = models.CharField(max_length=50, unique=True)

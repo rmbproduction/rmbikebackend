@@ -40,6 +40,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install psycopg[binary]
+          pip install django-cloudinary-storage
 
       - name: Run migrations
         env:
