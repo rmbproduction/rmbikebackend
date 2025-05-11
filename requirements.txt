@@ -118,3 +118,4 @@ whitenoise==6.9.0
 python-dotenv
 channels
 cloudinary
+cloudinary_storage
