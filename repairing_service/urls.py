@@ -38,7 +38,7 @@ router.register(r'field-staff', FieldStaffViewSet)
 urlpatterns = [
     path('manufacturers/', ManufacturerListView.as_view(), name='manufacturer-list'),
     path('vehicle-models/', VehicleModelListView.as_view(), name='vehicle-model-list'),
-    path('service-categories/', ServiceCategoryListView.as_view(), name='service-category-list'),
+    path('service_categories/', ServiceCategoryListView.as_view(), name='service-category-list'),
     path('services/', ServiceListByCategoryView.as_view(), name='service-list'),
     path('service-price/<int:service_id>/', ServicePriceDetailView.as_view(), name='service-price-detail'),
     path('cart/<int:cart_id>/', CartDetailView.as_view(), name='cart-detail'),
