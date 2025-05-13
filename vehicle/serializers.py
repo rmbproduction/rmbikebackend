@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import VehicleType, Manufacturer, VehicleModel, UserVehicle
+from .models import VehicleType, Manufacturer, VehicleModel, UserVehicle, VehicleImage
 from accounts.models import UserProfile
 
 class VehicleTypeSerializer(serializers.ModelSerializer):
@@ -29,3 +29,24 @@ class UserVehicleSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserVehicle
         fields = ('id', 'user', 'vehicle_type_name', 'manufacturer_name', 'model_name', 'registration_number', 'purchase_date', 'vehicle_image', 'color', 'year', 'mileage', 'insurance_expiry', 'notes')
+
+class VehicleImageSerializer(serializers.ModelSerializer):
+    image_urls = serializers.SerializerMethodField()
+    preview_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VehicleImage
+        fields = [
+            'id', 'user_vehicle', 'image', 'position', 'is_primary',
+            'caption', 'upload_date', 'image_urls', 'preview_url', 'thumbnail_url'
+        ]
+
+    def get_image_urls(self, obj):
+        return obj.image_urls
+
+    def get_preview_url(self, obj):
+        return obj.preview_url
+
+    def get_thumbnail_url(self, obj):
+        return obj.thumbnail_url

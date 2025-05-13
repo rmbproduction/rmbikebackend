@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import timedelta
 from django.contrib.auth import get_user_model
+from cloudinary.models import CloudinaryField
 
 User = get_user_model()
 
@@ -232,87 +233,35 @@ class SellRequest(BaseModel):
         help_text="Vehicle being sold"
     )
     
-    # Document fields (replacing JSONField)
-    registration_certificate = models.FileField(
-        upload_to='vehicle_documents/rc/',
-        null=True, 
-        blank=True,
-        help_text="Vehicle Registration Certificate (PDF/Image)"
-    )
-    insurance_document = models.FileField(
-        upload_to='vehicle_documents/insurance/',
-        null=True, 
-        blank=True,
-        help_text="Insurance document (PDF/Image)"
-    )
-    puc_certificate = models.FileField(
-        upload_to='vehicle_documents/puc/',
-        null=True, 
-        blank=True,
-        help_text="Pollution Under Control Certificate (PDF/Image)"
-    )
-    ownership_transfer = models.FileField(
-        upload_to='vehicle_documents/transfer/',
-        null=True, 
-        blank=True,
-        help_text="Ownership Transfer documents (PDF/Image)"
-    )
-    additional_documents = models.FileField(
-        upload_to='vehicle_documents/additional/',
-        null=True, 
-        blank=True,
-        help_text="Any additional documents (PDF/Image)"
-    )
+    # Document fields
+    registration_certificate = CloudinaryField('document', folder='vehicle_documents/rc', null=True, blank=True,
+                                            resource_type='auto', help_text="Vehicle Registration Certificate (PDF/Image)")
+    insurance_document = CloudinaryField('document', folder='vehicle_documents/insurance', null=True, blank=True,
+                                       resource_type='auto', help_text="Insurance document (PDF/Image)")
+    puc_certificate = CloudinaryField('document', folder='vehicle_documents/puc', null=True, blank=True,
+                                    resource_type='auto', help_text="Pollution Under Control Certificate (PDF/Image)")
+    ownership_transfer = CloudinaryField('document', folder='vehicle_documents/transfer', null=True, blank=True,
+                                       resource_type='auto', help_text="Ownership Transfer documents (PDF/Image)")
+    additional_documents = CloudinaryField('document', folder='vehicle_documents/additional', null=True, blank=True,
+                                         resource_type='auto', help_text="Any additional documents (PDF/Image)")
     
-    # Multiple vehicle photos (replacing JSONField)
-    photo_front = models.ImageField(
-        upload_to='vehicle_photos/front/',
-        null=True, 
-        blank=True,
-        help_text="Front view of vehicle"
-    )
-    photo_back = models.ImageField(
-        upload_to='vehicle_photos/back/',
-        null=True, 
-        blank=True,
-        help_text="Back view of vehicle"
-    )
-    photo_left = models.ImageField(
-        upload_to='vehicle_photos/left/',
-        null=True, 
-        blank=True,
-        help_text="Left side view of vehicle"
-    )
-    photo_right = models.ImageField(
-        upload_to='vehicle_photos/right/',
-        null=True, 
-        blank=True,
-        help_text="Right side view of vehicle"
-    )
-    photo_dashboard = models.ImageField(
-        upload_to='vehicle_photos/dashboard/',
-        null=True, 
-        blank=True,
-        help_text="Dashboard/Instrument cluster view"
-    )
-    photo_odometer = models.ImageField(
-        upload_to='vehicle_photos/odometer/',
-        null=True, 
-        blank=True,
-        help_text="Odometer reading"
-    )
-    photo_engine = models.ImageField(
-        upload_to='vehicle_photos/engine/',
-        null=True, 
-        blank=True,
-        help_text="Engine view"
-    )
-    photo_extras = models.ImageField(
-        upload_to='vehicle_photos/extras/',
-        null=True, 
-        blank=True,
-        help_text="Additional photos/modifications"
-    )
+    # Multiple vehicle photos
+    photo_front = CloudinaryField('image', folder='vehicle_photos/front', null=True, blank=True,
+                                help_text="Front view of vehicle")
+    photo_back = CloudinaryField('image', folder='vehicle_photos/back', null=True, blank=True,
+                               help_text="Back view of vehicle")
+    photo_left = CloudinaryField('image', folder='vehicle_photos/left', null=True, blank=True,
+                               help_text="Left side view of vehicle")
+    photo_right = CloudinaryField('image', folder='vehicle_photos/right', null=True, blank=True,
+                                help_text="Right side view of vehicle")
+    photo_dashboard = CloudinaryField('image', folder='vehicle_photos/dashboard', null=True, blank=True,
+                                    help_text="Dashboard/Instrument cluster view")
+    photo_odometer = CloudinaryField('image', folder='vehicle_photos/odometer', null=True, blank=True,
+                                   help_text="Odometer reading")
+    photo_engine = CloudinaryField('image', folder='vehicle_photos/engine', null=True, blank=True,
+                                 help_text="Engine view")
+    photo_extras = CloudinaryField('image', folder='vehicle_photos/extras', null=True, blank=True,
+                                 help_text="Additional photos/modifications")
     
     pickup_slot = models.DateTimeField(
         default=timezone.now,

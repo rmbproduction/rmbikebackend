@@ -3,6 +3,7 @@ from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 import uuid
 from django.db import connection
+from cloudinary.models import CloudinaryField
 # Removed unused import for django.utils.timezone
 
 class Feature(models.Model):
@@ -15,7 +16,7 @@ class ServiceCategory(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
-    image = models.ImageField(upload_to='service_categories/', null=True, blank=True)
+    image = CloudinaryField('image', folder='service_categories', null=True, blank=True)
     description = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
@@ -63,7 +64,7 @@ class Service(models.Model):
     manufacturers = models.ManyToManyField('vehicle.Manufacturer', related_name='services')
     vehicles_models = models.ManyToManyField('vehicle.VehicleModel', related_name='services')
     features = models.ManyToManyField(Feature, related_name='services')
-    image = models.ImageField(upload_to='service_images/', null=True, blank=True)
+    image = CloudinaryField('image', folder='service_images', null=True, blank=True)
     
     def save(self, *args, **kwargs):
         if not self.slug:

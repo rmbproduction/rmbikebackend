@@ -39,15 +39,47 @@ cloudinary.config(
     api_secret=CLOUDINARY_API_SECRET,
 )
 
-# Add required CLOUDINARY_STORAGE settings
+# Enhanced Cloudinary Storage Settings
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
     'API_KEY': CLOUDINARY_API_KEY,
     'API_SECRET': CLOUDINARY_API_SECRET,
+    'SECURE': True,  # Use HTTPS
+    'MEDIA_TAG': 'media',  # Tag for media files
+    'INVALID_VIDEO_ERROR_MESSAGE': 'Please upload a valid video file.',
+    'EXCLUDE_DELETE_ORPHANED_MEDIA_PATHS': [],  # Paths to exclude from cleanup
+    'STATIC_TAG': 'static',  # Tag for static files
+    'STATIC_IMAGES_EXTENSIONS': ['jpg', 'jpe', 'jpeg', 'jpc', 'jp2', 'j2k', 'wdp', 'jxr', 
+                                'hdp', 'png', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'ico'],
+    'STATIC_FILES_ALLOWED_TYPES': ['image', 'raw', 'video'],
+    'MAGIC_FILE_PATH': None,
+    'PREFIX': 'rmb'  # Prefix for all uploaded files
 }
 
-# Temporarily use default FileSystemStorage
-# DEFAULT_FILE_STORAGE = 'django_cloudinary_storage.storage.MediaCloudinaryStorage'
+# Set Cloudinary as the default file storage
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+STATICFILES_STORAGE = 'cloudinary_storage.storage.StaticHashedCloudinaryStorage'
+
+# Cloudinary transformations
+CLOUDINARY_TRANSFORMATIONS = {
+    'default': {
+        'quality': 'auto:good',
+        'fetch_format': 'auto',
+        'secure': True
+    },
+    'thumbnail': {
+        'width': 300,
+        'height': 200,
+        'crop': 'fill',
+        'quality': 'auto:good'
+    },
+    'preview': {
+        'width': 800,
+        'height': 600,
+        'crop': 'fill',
+        'quality': 'auto:good'
+    }
+}
 
 # Get host configuration from environment
 HOST_DOMAIN = config('HOST_DOMAIN', default='localhost:8000')
@@ -110,6 +142,7 @@ INSTALLED_APPS = [
     'subscription_plan',
     # Add Cloudinary app only
     'cloudinary',
+    'cloudinary_storage',
     'tools.image_optimizer.apps.ImageOptimizerConfig',
 ]
 

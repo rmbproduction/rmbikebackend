@@ -1,6 +1,7 @@
 from django.db import models
 from accounts.models import UserProfile
 import cloudinary.uploader
+from utils.cdn_utils import cdn_manager
 
 # Try to import CloudinaryField, fall back to FileField if unavailable
 try:
@@ -93,6 +94,42 @@ class VehicleImage(models.Model):
                 is_primary=True
             ).update(is_primary=False)
         super().save(*args, **kwargs)
+
+    @property
+    def image_urls(self):
+        """Get all available sizes of the image"""
+        if not self.image:
+            return None
+        
+        return {
+            size: cdn_manager.get_vehicle_image_url(
+                self.user_vehicle.id,
+                self.position,
+                size
+            ) for size in cdn_manager.transformations['vehicle'].keys()
+        }
+
+    @property
+    def preview_url(self):
+        """Get preview size URL of the image"""
+        if not self.image:
+            return None
+        return cdn_manager.get_vehicle_image_url(
+            self.user_vehicle.id,
+            self.position,
+            'preview'
+        )
+
+    @property
+    def thumbnail_url(self):
+        """Get thumbnail size URL of the image"""
+        if not self.image:
+            return None
+        return cdn_manager.get_vehicle_image_url(
+            self.user_vehicle.id,
+            self.position,
+            'thumbnail'
+        )
 
 class UserVehicle(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='vehicles', db_index=True)

@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.crypto import get_random_string
 from django.utils import timezone
+from cloudinary.models import CloudinaryField
 
 
 class User(AbstractUser):
@@ -67,7 +68,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     name = models.CharField(max_length=255)
     address = models.TextField(blank=False, default='', help_text="Required field")
-    profile_photo = models.ImageField(upload_to="profiles/", null=True, blank=True)
+    profile_photo = CloudinaryField('image', folder='profiles', null=True, blank=True)
     
     # Location fields
     preferredLocation = models.CharField(max_length=255, blank=False, default='', 

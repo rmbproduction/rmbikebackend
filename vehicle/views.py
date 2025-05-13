@@ -15,6 +15,7 @@ from .services import VehicleService
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import VehicleModelFilter
 from tools.cache_utils import cache_api_response, CACHE_TIMES
+from utils.cdn_utils import cdn_manager
 
 class VehicleTypeViewSet(viewsets.ModelViewSet):
     queryset = VehicleType.objects.all()
@@ -105,6 +106,49 @@ class UserVehicleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         return Response(details)
+
+    @action(detail=True, methods=['GET'])
+    def image_urls(self, request, pk=None):
+        """Get all image URLs for a vehicle"""
+        vehicle = self.get_object()
+        
+        # Get all images for the vehicle
+        images = vehicle.images.all()
+        
+        # Get URLs for each image
+        urls = {}
+        for image in images:
+            urls[image.position] = {
+                'urls': image.image_urls,
+                'preview': image.preview_url,
+                'thumbnail': image.thumbnail_url,
+                'is_primary': image.is_primary,
+                'caption': image.caption
+            }
+        
+        return Response({
+            'status': 'success',
+            'data': urls
+        })
+
+    @action(detail=True, methods=['GET'])
+    def upload_params(self, request, pk=None):
+        """Get upload parameters for vehicle images"""
+        vehicle = self.get_object()
+        
+        params = cdn_manager.get_upload_params(
+            'vehicle',
+            vehicle.id,
+            {
+                'allowed_formats': ['jpg', 'png', 'webp'],
+                'max_file_size': 5 * 1024 * 1024  # 5MB
+            }
+        )
+        
+        return Response({
+            'status': 'success',
+            'data': params
+        })
 
 @api_view(['GET'])
 def check_cloudinary(request):
