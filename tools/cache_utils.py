@@ -36,15 +36,19 @@ def cache_api_response(timeout=None, key_prefix="api"):
         def wrapper(*args, **kwargs):
             try:
                 # Determine if this is a ViewSet method or a regular view
+                request = None
+                
+                # Case 1: ViewSet method (self is first arg, request is self.request)
                 if len(args) > 0 and hasattr(args[0], 'request'):
-                    # This is a ViewSet method call where self is the first argument
                     self = args[0]
                     request = self.request
+                    
+                # Case 2: Regular view (request is first arg)
                 elif len(args) > 0 and hasattr(args[0], 'method'):
-                    # This is a regular view where request is the first argument
                     request = args[0]
-                else:
-                    # If we can't identify the request, just pass through to the original function
+                    
+                # If we can't identify the request, just pass through to the original function
+                if request is None:
                     logger.warning(f"Could not identify request in cache wrapper for {view_func.__name__}")
                     return view_func(*args, **kwargs)
                 
@@ -95,15 +99,19 @@ def cache_page_by_user(timeout=None, key_prefix="page"):
         def wrapper(*args, **kwargs):
             try:
                 # Determine if this is a ViewSet method or a regular view
+                request = None
+                
+                # Case 1: ViewSet method (self is first arg, request is self.request)
                 if len(args) > 0 and hasattr(args[0], 'request'):
-                    # This is a ViewSet method call where self is the first argument
                     self = args[0]
                     request = self.request
+                    
+                # Case 2: Regular view (request is first arg)
                 elif len(args) > 0 and hasattr(args[0], 'method'):
-                    # This is a regular view where request is the first argument
                     request = args[0]
-                else:
-                    # If we can't identify the request, just pass through to the original function
+                    
+                # If we can't identify the request, just pass through to the original function
+                if request is None:
                     logger.warning(f"Could not identify request in cache wrapper for {view_func.__name__}")
                     return view_func(*args, **kwargs)
                 

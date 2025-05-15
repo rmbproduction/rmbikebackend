@@ -10,30 +10,37 @@ class Command(BaseCommand):
         updated = 0
 
         self.stdout.write(self.style.SUCCESS(f'Found {total} vehicles. Starting update...'))
+        
+        # Use Cloudinary hosted default images
+        default_images = {
+            'bike': 'https://res.cloudinary.com/dz81bjuea/image/upload/v1747051234/defaults/default-bike_mdwkyt.jpg',
+            'scooter': 'https://res.cloudinary.com/dz81bjuea/image/upload/v1747051234/defaults/default-scooter_a5ghnr.jpg',
+            'default': 'https://res.cloudinary.com/dz81bjuea/image/upload/v1747051234/defaults/default-vehicle_x9w3po.jpg'
+        }
 
         for vehicle in vehicles:
-            # Skip vehicles that already have images
+            # Skip vehicles that already have images with URLs
             if vehicle.images and (
-                vehicle.images.get('front') or 
-                vehicle.images.get('main') or 
-                vehicle.images.get('thumbnail')):
+                vehicle.images.get('front', '').startswith('http') or 
+                vehicle.images.get('main', '').startswith('http') or 
+                vehicle.images.get('thumbnail', '').startswith('http')):
                 continue
 
             # Set default image paths based on vehicle type
             vehicle_type = vehicle.vehicle_type.lower()
             
             if 'bike' in vehicle_type:
-                image_name = 'default-bike.jpg'
+                image_url = default_images['bike']
             elif 'scooter' in vehicle_type:
-                image_name = 'default-scooter.jpg'
+                image_url = default_images['scooter']
             else:
-                image_name = 'default-vehicle.jpg'
+                image_url = default_images['default']
             
-            # Update the images field to include 'front' key
+            # Update the images field with Cloudinary URLs
             vehicle.images = {
-                'front': image_name,  # Key changed to 'front'
-                'main': 'defaults/' + image_name,
-                'thumbnail': 'defaults/' + image_name
+                'front': image_url,
+                'main': image_url,
+                'thumbnail': image_url
             }
             
             vehicle.save(update_fields=['images'])
