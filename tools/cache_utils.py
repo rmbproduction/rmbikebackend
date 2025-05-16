@@ -4,6 +4,7 @@ from functools import wraps
 from django.http import HttpResponse
 import hashlib
 import logging
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,10 @@ def cache_api_response(timeout=None, key_prefix="api"):
                 
                 # Cache the response if it's successful
                 if response.status_code == 200:
+                    # If it's a DRF response, render it first before caching
+                    if isinstance(response, Response) and not getattr(response, '_is_rendered', False):
+                        response.render()
+                    
                     cache.set(cache_key, response, cache_timeout)
                     logger.debug(f"Cached: {cache_key} for {cache_timeout} seconds")
                 
@@ -140,6 +145,10 @@ def cache_page_by_user(timeout=None, key_prefix="page"):
                 
                 # Cache the response if it's successful
                 if response.status_code == 200:
+                    # If it's a DRF response, render it first before caching
+                    if isinstance(response, Response) and not getattr(response, '_is_rendered', False):
+                        response.render()
+                    
                     cache.set(cache_key, response, cache_timeout)
                     logger.debug(f"Cached: {cache_key} for {cache_timeout} seconds")
                 

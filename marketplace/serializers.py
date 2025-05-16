@@ -72,13 +72,16 @@ class VehicleSerializer(serializers.ModelSerializer):
         # Otherwise, check the images dictionary
         front_image = obj.images.get('front') if obj.images else None
         if front_image:
+            # Don't add media URL if it's already a full URL
+            if front_image.startswith(('http://', 'https://')):
+                return front_image
             return settings.MEDIA_URL + 'vehicle_photos/front/' + front_image
             
         # If no specific front image, try other keys
         for key in ['main', 'thumbnail']:
             if obj.images and obj.images.get(key):
                 image_path = obj.images.get(key)
-                if image_path.startswith('http'):
+                if image_path.startswith(('http://', 'https://')):
                     return image_path
                 return settings.MEDIA_URL + image_path
                 
@@ -96,6 +99,9 @@ class VehicleSerializer(serializers.ModelSerializer):
             return obj.sell_request.photo_back.url
         back_image = obj.images.get('back') if obj.images else None
         if back_image:
+            # Don't add media URL if it's already a full URL
+            if back_image.startswith(('http://', 'https://')):
+                return back_image
             return settings.MEDIA_URL + 'vehicle_photos/back/' + back_image
         return None
     
@@ -104,6 +110,9 @@ class VehicleSerializer(serializers.ModelSerializer):
             return obj.sell_request.photo_left.url
         left_image = obj.images.get('left') if obj.images else None
         if left_image:
+            # Don't add media URL if it's already a full URL
+            if left_image.startswith(('http://', 'https://')):
+                return left_image
             return settings.MEDIA_URL + 'vehicle_photos/left/' + left_image
         return None
     
