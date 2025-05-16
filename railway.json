@@ -7,7 +7,17 @@
             "requirements.txt",
             "authback/**",
             "railway.json",
-            "Dockerfile"
+            "Dockerfile",
+            "accounts/**",
+            "marketplace/**",
+            "vehicle/**",
+            "repairing_service/**",
+            "subscription_plan/**",
+            "tools/**",
+            "manage.py",
+            ".env.example",
+            "paracord_runner.sh",
+            "pytest.ini"
         ]
     },
     "deploy": {
