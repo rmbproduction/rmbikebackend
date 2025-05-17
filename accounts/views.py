@@ -889,6 +889,62 @@ class UserProfileView(APIView):
                 {"detail": f"Error updating profile: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    def patch(self, request):
+        """Partially update user profile"""
+        try:
+            # Get or create the user profile
+            profile, created = UserProfile.objects.get_or_create(user=request.user)
+            if created:
+                profile.name = request.user.get_full_name() or request.user.username
+                profile.save()
+                
+            # Log the incoming data for debugging
+            logger.info(f"PATCH request for profile update received with data: {request.data}")
+            
+            # Handle JSON data
+            if request.content_type and 'application/json' in request.content_type:
+                data = request.data
+            else:
+                # Handle form data and files
+                data = request.data.copy()
+                
+                # Parse JSON data if provided in 'data' field
+                if 'data' in data and isinstance(data['data'], str):
+                    try:
+                        json_data = json.loads(data['data'])
+                        for key, value in json_data.items():
+                            data[key] = value
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Error parsing JSON data: {str(e)}")
+            
+            # Convert field names from frontend format to model format if needed
+            if 'postalCode' in data:
+                data['postal_code'] = data.pop('postalCode')
+            
+            # Use the serializer with partial=True for PATCH operations
+            serializer = UserProfileSerializer(profile, data=data, partial=True)
+            
+            if serializer.is_valid():
+                updated_profile = serializer.save()
+                logger.info(f"Profile updated successfully for user {request.user.email}")
+                return Response(
+                    UserProfileSerializer(updated_profile).data,
+                    status=status.HTTP_200_OK
+                )
+            else:
+                logger.warning(f"Profile update validation failed: {serializer.errors}")
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            logger.exception(f"Error in profile patch: {str(e)}")
+            return Response(
+                {"detail": f"Error updating profile: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ContactMessageView(APIView):
     """View for handling contact form submissions"""
