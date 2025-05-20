@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.db.models import Q
+from django.db import transaction
 
 # Add this new API view for creating carts
 @api_view(['POST'])
@@ -585,3 +586,18 @@ class UserBookingsView(APIView):
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class CartViewSet(viewsets.ModelViewSet):
+    @transaction.atomic
+    def add_item(self, request, *args, **kwargs):
+        try:
+            cart = self.get_cart()
+            item = request.data
+            # Validate stock availability
+            if not self.is_stock_available(item['service_id'], item['quantity']):
+                return Response({'error': 'Insufficient stock'}, status=400)
+            # Add item to cart
+            cart_item = cart.add_item(item)
+            return Response(self.serialize_cart_item(cart_item))
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)

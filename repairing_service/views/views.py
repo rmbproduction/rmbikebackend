@@ -15,6 +15,7 @@ import datetime
 import json
 from django.http import Http404
 from django.utils import timezone
+from rest_framework.renderers import JSONRenderer
 
 # Add this new API view for creating carts
 @api_view(['POST'])
@@ -244,6 +245,7 @@ class AdditionalServiceListView(generics.ListAPIView):
 
 class CreateBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer]
     
     def post(self, request):
         user = request.user
@@ -403,13 +405,9 @@ class CreateBookingView(APIView):
             # Clear the cart
             cart.delete()
             
-            return Response({
-                "status": "success",
-                "service_request_id": service_request.id,
-                "reference": service_request.reference,
-                "total_amount": str(service_request.total_amount),
-                "message": "Your service request has been created successfully!"
-            }, status=status.HTTP_201_CREATED)
+            # Use ServiceRequestSerializer to serialize the response
+            serializer = ServiceRequestSerializer(service_request)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             print(f"[ERROR] Service request creation failed: {str(e)}")
