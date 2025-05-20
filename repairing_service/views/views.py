@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from ..models import Feature, ServiceCategory, Service, ServicePrice, Cart, CartItem, FieldStaff, ServiceRequest, ServiceRequestResponse, LiveLocation, DistancePricingRule, PricingPlan, AdditionalService
 from ..serializers import ServicePriceSerializer, ServiceSerializer, ServiceCategorySerializer, FeatureSerializer, CartSerializer, CartItemSerializer, FieldStaffSerializer, ServiceRequestSerializer, ServiceRequestResponseSerializer, LiveLocationSerializer, PricingPlanSerializer, AdditionalServiceSerializer
 from django.shortcuts import render, get_object_or_404
-from vehicle.models import Manufacturer, VehicleModel
+from vehicle.models import Manufacturer, VehicleModel, VehicleType
 from vehicle.serializers import VehicleModelSerializer, ManufacturerSerializer
 from accounts.models import User
 import uuid
@@ -730,31 +730,30 @@ class UserBookingsView(APIView):
                 
                 # Add vehicle data if available
                 vehicle_data = None
-                if booking.vehicle_type_id and booking.manufacturer_id and booking.vehicle_model_id:
-                    vehicle_data = {
-                        'vehicle_type': booking.vehicle_type_id,
-                        'manufacturer': booking.manufacturer_id,
-                        'model': booking.vehicle_model_id,
-                    }
-                    
-                    # Try to get display names
-                    try:
+                try:
+                    if booking.vehicle_type_id and booking.manufacturer_id and booking.vehicle_model_id:
+                        # Get the actual model instances
                         vehicle_type = VehicleType.objects.get(id=booking.vehicle_type_id)
-                        vehicle_data['vehicle_type_name'] = vehicle_type.name
-                    except:
-                        pass
-                        
-                    try:
                         manufacturer = Manufacturer.objects.get(id=booking.manufacturer_id)
-                        vehicle_data['manufacturer_name'] = manufacturer.name
-                    except:
-                        pass
-                        
-                    try:
                         vehicle_model = VehicleModel.objects.get(id=booking.vehicle_model_id)
-                        vehicle_data['model_name'] = vehicle_model.name
-                    except:
-                        pass
+                        
+                        vehicle_data = {
+                            'vehicle_type': booking.vehicle_type_id,
+                            'manufacturer': booking.manufacturer_id,
+                            'model': booking.vehicle_model_id,
+                            'vehicle_type_name': vehicle_type.name,
+                            'manufacturer_name': manufacturer.name,
+                            'model_name': vehicle_model.name
+                        }
+                except Exception as e:
+                    print(f"[WARNING] Error fetching vehicle data for booking {booking.id}: {str(e)}")
+                    # If there's an error, still provide the IDs without names
+                    if booking.vehicle_type_id and booking.manufacturer_id and booking.vehicle_model_id:
+                        vehicle_data = {
+                            'vehicle_type': booking.vehicle_type_id,
+                            'manufacturer': booking.manufacturer_id,
+                            'model': booking.vehicle_model_id
+                        }
                 
                 # Ensure total_amount is properly calculated if it's zero
                 total_amount = booking.total_amount
@@ -768,7 +767,7 @@ class UserBookingsView(APIView):
                 # Create booking data object
                 booking_data = {
                     'id': booking.id,
-                    'reference': booking.reference,
+                    'reference': booking.reference or f'RMB-{uuid.uuid4().hex[:8].upper()}',
                     'created_at': booking.created_at.isoformat(),
                     'status': booking.status,
                     'status_display': status_display_mapping.get(booking.status.lower(), booking.status),
