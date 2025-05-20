@@ -5,6 +5,7 @@ from django.http import HttpResponse
 import hashlib
 import logging
 from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,16 @@ def get_cache_key(request, key_prefix="view"):
     # Generate a hash of the key parts
     key_string = "_".join(key_parts)
     return hashlib.md5(key_string.encode()).hexdigest()
+
+def ensure_renderer(response):
+    """
+    Ensure the response has a renderer set
+    """
+    if isinstance(response, Response) and not hasattr(response, 'accepted_renderer'):
+        response.accepted_renderer = JSONRenderer()
+        response.accepted_media_type = "application/json"
+        response.renderer_context = {}
+    return response
 
 def cache_api_response(timeout=None, key_prefix="api"):
     """
@@ -51,15 +62,15 @@ def cache_api_response(timeout=None, key_prefix="api"):
                 # If we can't identify the request, just pass through to the original function
                 if request is None:
                     logger.warning(f"Could not identify request in cache wrapper for {view_func.__name__}")
-                    return view_func(*args, **kwargs)
+                    return ensure_renderer(view_func(*args, **kwargs))
                 
                 # Skip caching for non-GET requests
                 if request.method != 'GET':
-                    return view_func(*args, **kwargs)
+                    return ensure_renderer(view_func(*args, **kwargs))
                 
                 # Skip caching if user is authenticated and cache_auth=False
                 if request.user.is_authenticated and not getattr(settings, 'CACHE_AUTHENTICATED_REQUESTS', True):
-                    return view_func(*args, **kwargs)
+                    return ensure_renderer(view_func(*args, **kwargs))
                 
                 # Use provided timeout or default
                 cache_timeout = timeout or getattr(settings, 'CACHE_TTL', 60 * 5)
@@ -71,15 +82,17 @@ def cache_api_response(timeout=None, key_prefix="api"):
                 response = cache.get(cache_key)
                 if response:
                     logger.debug(f"Cache hit: {cache_key}")
-                    return HttpResponse(content=response.content,
-                                    status=response.status_code,
-                                    content_type=response.content_type)
+                    # Ensure cached response has renderer
+                    return ensure_renderer(response)
                 
                 # Generate response
                 response = view_func(*args, **kwargs)
                 
                 # Cache the response if it's successful
                 if response.status_code == 200:
+                    # Ensure response has renderer before caching
+                    response = ensure_renderer(response)
+                    
                     # If it's a DRF response, render it first before caching
                     if isinstance(response, Response) and not getattr(response, '_is_rendered', False):
                         response.render()
@@ -91,7 +104,7 @@ def cache_api_response(timeout=None, key_prefix="api"):
             except Exception as e:
                 # If any error occurs in the caching logic, log it and pass through to the original function
                 logger.exception(f"Error in cache wrapper for {view_func.__name__}: {str(e)}")
-                return view_func(*args, **kwargs)
+                return ensure_renderer(view_func(*args, **kwargs))
         return wrapper
     return decorator
 
@@ -118,11 +131,11 @@ def cache_page_by_user(timeout=None, key_prefix="page"):
                 # If we can't identify the request, just pass through to the original function
                 if request is None:
                     logger.warning(f"Could not identify request in cache wrapper for {view_func.__name__}")
-                    return view_func(*args, **kwargs)
+                    return ensure_renderer(view_func(*args, **kwargs))
                 
                 # Skip caching for non-GET requests
                 if request.method != 'GET':
-                    return view_func(*args, **kwargs)
+                    return ensure_renderer(view_func(*args, **kwargs))
                 
                 # Use provided timeout or default
                 cache_timeout = timeout or getattr(settings, 'CACHE_TTL', 60 * 5)
@@ -136,15 +149,17 @@ def cache_page_by_user(timeout=None, key_prefix="page"):
                 response = cache.get(cache_key)
                 if response:
                     logger.debug(f"Cache hit: {cache_key}")
-                    return HttpResponse(content=response.content,
-                                    status=response.status_code,
-                                    content_type=response.content_type)
+                    # Ensure cached response has renderer
+                    return ensure_renderer(response)
                 
                 # Generate response
                 response = view_func(*args, **kwargs)
                 
                 # Cache the response if it's successful
                 if response.status_code == 200:
+                    # Ensure response has renderer before caching
+                    response = ensure_renderer(response)
+                    
                     # If it's a DRF response, render it first before caching
                     if isinstance(response, Response) and not getattr(response, '_is_rendered', False):
                         response.render()
@@ -156,7 +171,7 @@ def cache_page_by_user(timeout=None, key_prefix="page"):
             except Exception as e:
                 # If any error occurs in the caching logic, log it and pass through to the original function
                 logger.exception(f"Error in cache wrapper for {view_func.__name__}: {str(e)}")
-                return view_func(*args, **kwargs)
+                return ensure_renderer(view_func(*args, **kwargs))
         return wrapper
     return decorator
 
