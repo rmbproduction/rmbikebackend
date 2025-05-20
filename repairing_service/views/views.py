@@ -28,10 +28,12 @@ class ManufacturerListView(generics.ListAPIView):
     queryset = Manufacturer.objects.all()
     serializer_class = ManufacturerSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
 
 class VehicleModelListView(generics.ListAPIView):
     serializer_class = VehicleModelSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     def get_queryset(self):
         manufacturer_id = self.request.query_params.get('manufacturer_id')
         if (manufacturer_id):
@@ -42,10 +44,12 @@ class ServiceCategoryListView(generics.ListAPIView):
     queryset = ServiceCategory.objects.all()
     serializer_class = ServiceCategorySerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
 
 class ServiceListByCategoryView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = ServiceSerializer
+    renderer_classes = [JSONRenderer]
 
     def get_queryset(self):
         category_id = self.request.query_params.get('category_id')
@@ -56,6 +60,7 @@ class ServiceListByCategoryView(generics.ListAPIView):
 class ServicePriceDetailView(generics.RetrieveAPIView):
     permission_classes = [AllowAny]
     serializer_class = ServicePriceSerializer
+    renderer_classes = [JSONRenderer]
     
     def get_object(self):
         service_id = self.kwargs['service_id']
@@ -88,12 +93,14 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
 class CartDetailView(generics.RetrieveAPIView):
     serializer_class = CartSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     def get_object(self):
         cart_id = self.kwargs['cart_id']
         return get_object_or_404(Cart, id=cart_id)
 
 class RemoveCartItemView(generics.DestroyAPIView):
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     def delete(self, request, *args, **kwargs):
         cart_item_id = self.kwargs['cart_item_id']
         cart_item = get_object_or_404(CartItem, id=cart_item_id)
@@ -103,6 +110,7 @@ class RemoveCartItemView(generics.DestroyAPIView):
 class AddToCartView(generics.CreateAPIView):
     serializer_class = CartItemSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     def create(self, request, *args, **kwargs):
         try:
             cart_id = self.kwargs['cart_id']
@@ -180,6 +188,7 @@ class AddToCartView(generics.CreateAPIView):
 class CartItemCreateView(CreateAPIView):
     serializer_class = CartItemSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -191,6 +200,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
     queryset = ServiceRequest.objects.all()
     serializer_class = ServiceRequestSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
 
     def perform_create(self, serializer):
         serializer.save()
@@ -223,6 +233,7 @@ class FieldStaffViewSet(viewsets.ModelViewSet):
     queryset = FieldStaff.objects.all()
     serializer_class = FieldStaffSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
 
     def current_location(self, request, pk=None):
         field_staff = self.get_object()
@@ -237,11 +248,13 @@ class PricingPlanListView(generics.ListAPIView):
     queryset = PricingPlan.objects.all()
     serializer_class = PricingPlanSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
 
 class AdditionalServiceListView(generics.ListAPIView):
     queryset = AdditionalService.objects.all()
     serializer_class = AdditionalServiceSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
 
 class CreateBookingView(APIView):
     permission_classes = [IsAuthenticated]
@@ -416,6 +429,7 @@ class CreateBookingView(APIView):
 class ServiceRequestResponseDetailView(generics.ListCreateAPIView):
     serializer_class = ServiceRequestResponseSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     
     def get_queryset(self):
         service_request_id = self.kwargs['service_request_id']
@@ -424,6 +438,7 @@ class ServiceRequestResponseDetailView(generics.ListCreateAPIView):
 class LiveLocationView(generics.RetrieveUpdateAPIView):
     serializer_class = LiveLocationSerializer
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     
     def get_object(self):
         service_request_id = self.kwargs['service_request_id']
@@ -435,6 +450,7 @@ class LiveLocationView(generics.RetrieveUpdateAPIView):
 
 class CalculateDistanceFeeView(APIView):
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     
     def post(self, request):
         # Extract coordinates
@@ -515,6 +531,7 @@ class CalculateDistanceFeeView(APIView):
 
 class UpdateCartItemView(APIView):
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     
     def post(self, request, cart_id):
         """
@@ -581,6 +598,7 @@ class UpdateCartItemView(APIView):
 
 class ClearCartView(APIView):
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     
     def delete(self, request, cart_id):
         """Clear all items from a cart"""
@@ -599,6 +617,7 @@ class ClearCartView(APIView):
 
 class CancelBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer]
     
     def post(self, request, booking_id):
         try:
@@ -634,6 +653,7 @@ class CancelBookingView(APIView):
 
 class ClearCancelledBookingsView(APIView):
     permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer]
     
     def post(self, request):
         try:
@@ -669,6 +689,7 @@ class ClearCancelledBookingsView(APIView):
 
 class UserBookingsView(APIView):
     permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer]
     
     def get(self, request):
         """Get all bookings for the authenticated user"""
