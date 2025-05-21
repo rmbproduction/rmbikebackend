@@ -203,15 +203,21 @@ class ServiceRequest(models.Model):
     def cancel_service(self, user):
         """
         Safely cancel a service request
+        Returns True if cancellation was successful, False otherwise
         """
         from django.utils import timezone
         
-        if self.status not in [self.STATUS_COMPLETED, self.STATUS_CANCELLED]:
-            self.status = self.STATUS_CANCELLED
-            self.cancelled_at = timezone.now()
-            self.cancelled_by = user
-            self.save()
-            return True
+        # Only allow cancellation of pending, confirmed or in_progress bookings
+        if self.status in [self.STATUS_PENDING, self.STATUS_CONFIRMED, self.STATUS_IN_PROGRESS]:
+            try:
+                self.status = self.STATUS_CANCELLED
+                self.cancelled_at = timezone.now()
+                self.cancelled_by = user
+                self.save()
+                return True
+            except Exception as e:
+                print(f"Error cancelling service request: {str(e)}")
+                return False
         return False
 
     def __str__(self):
