@@ -52,12 +52,26 @@ GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET")
 
 # Dynamic redirect URI based on environment
 def get_google_redirect_uri(request):
-    if os.environ.get('ENVIRONMENT') == 'production':
+    """
+    Get the appropriate redirect URI for Google OAuth based on environment.
+    For production: Always use the configured production URL
+    For development: Use localhost with the correct port
+    """
+    environment = os.environ.get('ENVIRONMENT', 'development')
+    
+    if environment == 'production':
+        # Always use the production URL in production
         return 'https://repairmybike.up.railway.app/api/accounts/google/callback/'
     else:
-        # For development, use the request's host
-        scheme = request.is_secure() and 'https' or 'http'
-        return f'{scheme}://{request.get_host()}/api/accounts/google/callback/'
+        # For development, construct URL from request
+        protocol = 'https' if request.is_secure() else 'http'
+        host = request.get_host()
+        
+        # Safety check - ensure we're using localhost in development
+        if 'localhost' not in host and '127.0.0.1' not in host:
+            host = 'localhost:8000'  # Default to standard Django development port
+            
+        return f'{protocol}://{host}/api/accounts/google/callback/'
 
 # Simple rate limiting
 request_counts = defaultdict(list)
