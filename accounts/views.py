@@ -63,15 +63,8 @@ def get_google_redirect_uri(request):
         # Always use the production URL in production
         return 'https://repairmybike.up.railway.app/api/accounts/google/callback/'
     else:
-        # For development, construct URL from request
-        protocol = 'https' if request.is_secure() else 'http'
-        host = request.get_host()
-        
-        # Safety check - ensure we're using localhost in development
-        if 'localhost' not in host and '127.0.0.1' not in host:
-            host = 'localhost:8000'  # Default to standard Django development port
-            
-        return f'{protocol}://{host}/api/accounts/google/callback/'
+        # For development, always use http://localhost:8000
+        return 'http://localhost:8000/api/accounts/google/callback/'
 
 # Simple rate limiting
 request_counts = defaultdict(list)
