@@ -49,7 +49,15 @@ logger = logging.getLogger(__name__)
 # Google OAuth settings
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = "http://localhost:8000/api/accounts/google/callback/"
+
+# Dynamic redirect URI based on environment
+def get_google_redirect_uri(request):
+    if os.environ.get('ENVIRONMENT') == 'production':
+        return 'https://repairmybike.up.railway.app/api/accounts/google/callback/'
+    else:
+        # For development, use the request's host
+        scheme = request.is_secure() and 'https' or 'http'
+        return f'{scheme}://{request.get_host()}/api/accounts/google/callback/'
 
 # Simple rate limiting
 request_counts = defaultdict(list)
@@ -421,10 +429,11 @@ class GoogleLoginView(APIView):
     permission_classes = (permissions.AllowAny,)
     
     def get(self, request):
+        redirect_uri = get_google_redirect_uri(request)
         url = (
             f"https://accounts.google.com/o/oauth2/v2/auth?"
             f"client_id={GOOGLE_CLIENT_ID}&"
-            f"redirect_uri={GOOGLE_REDIRECT_URI}&"
+            f"redirect_uri={redirect_uri}&"
             f"response_type=code&"
             f"scope=openid%20email%20profile"
         )
@@ -439,18 +448,26 @@ class GoogleCallbackView(APIView):
             return Response({"error": "Authorization code not provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            redirect_uri = get_google_redirect_uri(request)
             # Exchange code for tokens
             token_url = "https://oauth2.googleapis.com/token"
             token_data = {
                 "code": code,
                 "client_id": GOOGLE_CLIENT_ID,
                 "client_secret": GOOGLE_CLIENT_SECRET,
-                "redirect_uri": GOOGLE_REDIRECT_URI,
+                "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
             }
             token_response = requests.post(token_url, data=token_data)
             token_response.raise_for_status()
             access_token = token_response.json().get("access_token")
+
+            if not access_token:
+                logger.error("No access token received from Google")
+                return Response(
+                    {"error": "Failed to get access token from Google"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             # Get user info from Google
             user_info = requests.get(
@@ -475,19 +492,52 @@ class GoogleCallbackView(APIView):
             if created:
                 user.set_unusable_password()
                 user.save()
+                logger.info(f"Created new user via Google OAuth: {email}")
 
             # Generate JWT tokens
             tokens = get_tokens_for_user(user)
             
-            return Response({
+            # Create response with user data
+            response = Response({
                 "message": "Login successful",
-                "tokens": tokens,
                 "user": {
                     "id": user.id,
                     "username": user.username,
                     "email": user.email
                 }
             })
+
+            # Set HttpOnly cookies
+            response.set_cookie(
+                settings.JWT_AUTH_COOKIE,
+                tokens['access'],
+                max_age=3600,  # 1 hour
+                httponly=True,
+                secure=settings.JWT_AUTH_COOKIE_SECURE,
+                samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
+                path=settings.JWT_AUTH_COOKIE_PATH
+            )
+            
+            response.set_cookie(
+                settings.JWT_AUTH_REFRESH_COOKIE,
+                tokens['refresh'],
+                max_age=30 * 24 * 3600,  # 30 days
+                httponly=True,
+                secure=settings.JWT_AUTH_COOKIE_SECURE,
+                samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
+                path=settings.JWT_AUTH_COOKIE_PATH
+            )
+
+            # Determine redirect URL based on environment
+            if os.environ.get('ENVIRONMENT') == 'production':
+                frontend_url = 'https://repairmybike.in'
+            else:
+                frontend_url = settings.FRONTEND_URL
+
+            response['Location'] = f"{frontend_url}/profile"
+            response.status_code = status.HTTP_302_FOUND
+            
+            return response
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Google OAuth error: {str(e)}")
