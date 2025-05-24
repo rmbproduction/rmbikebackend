@@ -374,10 +374,11 @@ LOGIN_REDIRECT_URL = '/login/success/'
 
 
 # Security Settings - Enable in production
-SECURE_SSL_REDIRECT = os.environ.get('ENVIRONMENT', 'development') == 'production'
-SESSION_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
-CSRF_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Uncommented for Railway deployment
+SECURE_SSL_REDIRECT = True  # Always redirect to HTTPS
+SESSION_COOKIE_SECURE = True  # Only send cookies over HTTPS
+CSRF_COOKIE_SECURE = True  # Only send CSRF cookie over HTTPS
+CSRF_COOKIE_HTTPONLY = False  # CSRF token needs to be readable by JS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -452,12 +453,12 @@ SIMPLE_JWT = {
 }
 
 # JWT Cookie Settings
-JWT_AUTH_COOKIE = 'access_token'
-JWT_AUTH_REFRESH_COOKIE = 'refresh_token'
-JWT_AUTH_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'  # True in production
-JWT_AUTH_COOKIE_HTTPONLY = True
-JWT_AUTH_COOKIE_SAMESITE = 'Lax'
-JWT_AUTH_COOKIE_PATH = '/'
+JWT_AUTH_COOKIE = 'access_token'  # Name of the access token cookie
+JWT_AUTH_REFRESH_COOKIE = 'refresh_token'  # Name of the refresh token cookie
+JWT_AUTH_COOKIE_SECURE = True  # Always use secure cookies
+JWT_AUTH_COOKIE_HTTPONLY = True  # Make JWT cookies HttpOnly
+JWT_AUTH_COOKIE_SAMESITE = 'Lax'  # Protect against CSRF
+JWT_AUTH_COOKIE_PATH = '/'  # Cookie path
 
 # REST Framework settings
 REST_FRAMEWORK = {
