@@ -290,16 +290,15 @@ class LoginView(APIView):
             email = serializer.validated_data['email']
             password = serializer.validated_data['password']
 
-            # Try to check login attempts, but don't fail if cache is down
+            # Try to check login attempts
             try:
                 check_login_attempts(email)
             except ValidationError as e:
                 return Response({"error": str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
             except Exception as e:
-                # Log the error but continue with authentication
                 logger.error(f"Error checking login attempts: {str(e)}")
 
-            # First check if user exists but is not verified
+            # Check if user exists but is not verified
             try:
                 user_exists = User.objects.filter(email=email).exists()
                 user_obj = User.objects.get(email=email) if user_exists else None
@@ -317,14 +316,13 @@ class LoginView(APIView):
             user = authenticate(request, email=email, password=password)
             
             if not user:
-                # Try to increment failed login attempts, but don't fail if cache is down
+                # Handle failed login attempts
                 try:
                     attempts = cache.get(f'login_attempts_{email}', 0)
                     cache.set(f'login_attempts_{email}', attempts + 1, timeout=3600)
                 except Exception as e:
                     logger.error(f"Error tracking failed login attempts: {str(e)}")
                 
-                # Log failed attempt
                 logger.warning(f"Failed login attempt for {email}")
                 
                 return Response({
@@ -341,21 +339,17 @@ class LoginView(APIView):
             # Log successful login
             logger.info(f"Successful login for {email}")
 
-            # Get tokens with custom claims
+            # Get tokens and create response
             try:
                 tokens = get_tokens_for_user(user)
-                
-                # Check if this is first login after verification
                 is_first_login = user.last_login is None
                 
-                # Update last login time
                 if is_first_login:
                     logger.info(f"First login after verification for {email}")
                 
-                return Response({
+                response = Response({
                     "message": "Login successful",
                     "is_first_login": is_first_login,
-                    "tokens": tokens,
                     "user": {
                         "id": user.id,
                         "username": user.username,
@@ -363,6 +357,30 @@ class LoginView(APIView):
                         "email_verified": user.email_verified
                     }
                 })
+
+                # Set cookies
+                response.set_cookie(
+                    settings.JWT_AUTH_COOKIE,
+                    tokens['access'],
+                    max_age=3600,  # 1 hour
+                    httponly=True,
+                    secure=settings.JWT_AUTH_COOKIE_SECURE,
+                    samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
+                    path=settings.JWT_AUTH_COOKIE_PATH
+                )
+                
+                response.set_cookie(
+                    settings.JWT_AUTH_REFRESH_COOKIE,
+                    tokens['refresh'],
+                    max_age=30 * 24 * 3600,  # 30 days
+                    httponly=True,
+                    secure=settings.JWT_AUTH_COOKIE_SECURE,
+                    samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
+                    path=settings.JWT_AUTH_COOKIE_PATH
+                )
+                
+                return response
+
             except Exception as e:
                 logger.error(f"Error generating tokens: {str(e)}")
                 return Response({
@@ -745,40 +763,36 @@ class VerifyEmailView(APIView):
 
 class LogoutView(APIView):
     permission_classes = (permissions.AllowAny,)
-    serializer_class = LogoutSerializer
 
     def post(self, request):
         try:
-            serializer = LogoutSerializer(data=request.data)
-            if not serializer.is_valid():
-                return Response(
-                    serializer.errors,
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-            refresh_token = serializer.validated_data['refresh']
-
-            # Blacklist the refresh token
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-                
-                # Try to log the logout if user is authenticated
-                if request.user.is_authenticated:
-                    logger.info(f"User {request.user.email} logged out successfully")
-                else:
-                    logger.info("User logged out successfully (unauthenticated)")
-
-                return Response(
-                    {"message": "Successfully logged out"},
-                    status=status.HTTP_200_OK
-                )
-            except TokenError as e:
-                return Response(
-                    {"error": "Invalid token. Please provide a valid refresh token."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
+            # Get refresh token from cookie
+            refresh_token = request.COOKIES.get(settings.JWT_AUTH_REFRESH_COOKIE)
+            
+            if refresh_token:
+                try:
+                    # Blacklist the refresh token
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                except TokenError:
+                    # Token might be invalid, but we still want to clear cookies
+                    pass
+            
+            # Create response
+            response = Response({"message": "Successfully logged out"})
+            
+            # Delete cookies
+            response.delete_cookie(settings.JWT_AUTH_COOKIE)
+            response.delete_cookie(settings.JWT_AUTH_REFRESH_COOKIE)
+            
+            # Try to log the logout if user is authenticated
+            if request.user.is_authenticated:
+                logger.info(f"User {request.user.email} logged out successfully")
+            else:
+                logger.info("User logged out successfully (unauthenticated)")
+            
+            return response
+            
         except Exception as e:
             logger.error(f"Logout error: {str(e)}")
             return Response(
