@@ -1,4 +1,6 @@
 from django.utils.deprecation import MiddlewareMixin
+from django.conf import settings
+from django.middleware.csrf import get_token
 
 class RoleMiddleware(MiddlewareMixin):
     def process_request(self, request):
@@ -30,3 +32,24 @@ class RoleMiddleware(MiddlewareMixin):
                 request.is_staff = False
                 request.is_field_staff = False
                 request.is_customer = True
+
+class CSRFSecureMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Force CSRF cookie to be set with secure flag
+        if not request.COOKIES.get('csrftoken'):
+            get_token(request)  # This will set the CSRF cookie
+            
+        response = self.get_response(request)
+        
+        # Ensure CSRF cookie has correct flags
+        if 'csrftoken' in response.cookies:
+            response.cookies['csrftoken']['secure'] = True
+            response.cookies['csrftoken']['httponly'] = False
+            response.cookies['csrftoken']['samesite'] = 'Lax'
+            if settings.CSRF_COOKIE_DOMAIN:
+                response.cookies['csrftoken']['domain'] = settings.CSRF_COOKIE_DOMAIN
+        
+        return response

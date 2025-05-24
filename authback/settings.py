@@ -153,6 +153,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'accounts.middleware.CSRFSecureMiddleware',  # Add our custom middleware
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -373,17 +374,17 @@ AUTH_USER_MODEL = 'accounts.User'
 LOGIN_REDIRECT_URL = '/login/success/'
 
 
-# Security Settings - Enable in production
+# Security Settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
+
+# Cookie Security
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-
-# CSRF Settings
-CSRF_COOKIE_HTTPONLY = False   # Must be False to allow JavaScript access
-CSRF_COOKIE_SAMESITE = 'Lax'   # CSRF protection
-CSRF_USE_SESSIONS = False      # Use cookies, not sessions
+CSRF_COOKIE_HTTPONLY = False  # Must be False to allow JavaScript access
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_DOMAIN = 'repairmybike.up.railway.app'  # Your domain
 CSRF_COOKIE_NAME = 'csrftoken'
-CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 CSRF_TRUSTED_ORIGINS = [
     'https://repairmybike.up.railway.app',
     'https://repairmybike.vercel.app',
@@ -393,43 +394,45 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.repairmybike.in',
 ]
 
-# Add development origins if needed
-if os.environ.get('ENVIRONMENT', 'development') == 'development':
-    CSRF_TRUSTED_ORIGINS.extend([
-        f"http://localhost:{SERVICE_PORTS['FRONTEND_VITE']}",
-        f"http://localhost:{SERVICE_PORTS['FRONTEND_REACT']}",
-    ])
+# JWT settings
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'AUTH_COOKIE': 'access_token',               # Cookie name for access token
+    'AUTH_COOKIE_DOMAIN': None,                  # Use None for standard domain handling
+    'AUTH_COOKIE_SECURE': True,                  # Only send over HTTPS
+    'AUTH_COOKIE_HTTP_ONLY': True,              # Prevent JavaScript access
+    'AUTH_COOKIE_PATH': '/',                    # Cookie path
+    'AUTH_COOKIE_SAMESITE': 'Lax',             # CSRF protection
+}
 
-# Force cookie settings
-CSRF_COOKIE_DOMAIN = '.repairmybike.up.railway.app'  # Match your domain
-SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-
-# JWT Cookie settings - Force security
+# JWT Cookie Settings (for custom implementation)
 JWT_AUTH_COOKIE = 'access_token'
 JWT_AUTH_REFRESH_COOKIE = 'refresh_token'
-JWT_AUTH_COOKIE_SECURE = True              # Force HTTPS
-JWT_AUTH_COOKIE_HTTPONLY = True            # Prevent JavaScript access
-JWT_AUTH_COOKIE_SAMESITE = 'Lax'          # CSRF protection
+JWT_AUTH_COOKIE_SECURE = True
+JWT_AUTH_COOKIE_HTTPONLY = True
+JWT_AUTH_COOKIE_SAMESITE = 'Lax'
 JWT_AUTH_COOKIE_PATH = '/'
 
-# Additional security headers
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_HOST = 'repairmybike.up.railway.app'  # Force SSL host
+# Additional Security Headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-
-# Force HTTPS
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-
-# Session settings
-SESSION_COOKIE_HTTPONLY = True  # Protect session cookie
-SESSION_COOKIE_SECURE = True    # Only send over HTTPS
-SESSION_COOKIE_SAMESITE = 'Lax' # Protection against CSRF
 
 # Rate Limiting Settings
 RATELIMIT_ENABLE = True
@@ -473,24 +476,6 @@ CACHE_MIDDLEWARE_SECONDS = 60 * 15  # Cache middleware timeout increased to 15 m
 # Redis as the cache backend
 DJANGO_REDIS_IGNORE_EXCEPTIONS = True
 DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
-
-# JWT settings
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': True,
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': None,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
-}
 
 # REST Framework settings
 REST_FRAMEWORK = {
