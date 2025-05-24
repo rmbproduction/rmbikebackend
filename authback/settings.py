@@ -376,14 +376,16 @@ LOGIN_REDIRECT_URL = '/login/success/'
 # Security Settings - Enable in production
 SECURE_SSL_REDIRECT = True  # Always redirect to HTTPS
 SESSION_COOKIE_SECURE = True  # Only send cookies over HTTPS
-CSRF_COOKIE_SECURE = True  # Only send CSRF cookie over HTTPS
-CSRF_COOKIE_HTTPONLY = False  # CSRF token needs to be readable by JS
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+
+# CSRF Settings
+CSRF_COOKIE_SECURE = True      # Only send over HTTPS
+CSRF_COOKIE_HTTPONLY = False   # Allow JavaScript access
+CSRF_COOKIE_SAMESITE = 'Lax'   # Protection against CSRF
+CSRF_USE_SESSIONS = False      # Store CSRF in cookie, not session
+CSRF_COOKIE_NAME = 'csrftoken' # Default name, explicitly set
+
+# CSRF Trusted Origins - Only HTTPS in production
 CSRF_TRUSTED_ORIGINS = [
-    f"http://localhost:{SERVICE_PORTS['FRONTEND_VITE']}",
     'https://repairmybike.up.railway.app',
     'https://repairmybike.vercel.app',
     'https://repair-my-bike.vercel.app',
@@ -391,6 +393,25 @@ CSRF_TRUSTED_ORIGINS = [
     'https://repairmybike.in',
     'https://www.repairmybike.in',
 ]
+
+# Add development origins if not in production
+if os.environ.get('ENVIRONMENT', 'development') == 'development':
+    CSRF_TRUSTED_ORIGINS.extend([
+        f"http://localhost:{SERVICE_PORTS['FRONTEND_VITE']}",
+        f"http://localhost:{SERVICE_PORTS['FRONTEND_REACT']}",
+    ])
+
+# Other security settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Session settings
+SESSION_COOKIE_HTTPONLY = True  # Protect session cookie
+SESSION_COOKIE_SECURE = True    # Only send over HTTPS
+SESSION_COOKIE_SAMESITE = 'Lax' # Protection against CSRF
+
 # Rate Limiting Settings
 RATELIMIT_ENABLE = True
 RATELIMIT_USE_CACHE = 'default'
