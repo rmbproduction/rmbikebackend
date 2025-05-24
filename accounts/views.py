@@ -57,11 +57,13 @@ def get_google_redirect_uri(request):
     For production: Always use the configured production URL
     For development: Use localhost with the correct port
     """
-    environment = os.environ.get('ENVIRONMENT', 'development')
+    # Check if we're on the production domain
+    host = request.get_host()
+    is_production = 'railway.app' in host or 'repairmybike.in' in host
     
-    if environment == 'production':
-        # Always use the production URL in production
-        return 'https://repairmybike.up.railway.app/api/accounts/google/callback/'
+    if is_production:
+        # Use the actual host in production
+        return f'https://{host}/api/accounts/google/callback/'
     else:
         # For development, always use http://localhost:8000
         return 'http://localhost:8000/api/accounts/google/callback/'
