@@ -20,18 +20,13 @@ from .views import (
     UpdateCartItemView,
     ClearCartView,
     CreateBookingView,
-    CancelBookingView,
-    ClearCancelledBookingsView,
     GetServiceNowView,
-    # Chatbot views
-    chatbot_webhook, 
-    analyze_intent, 
-    get_chat_history,
     UserBookingsView
 )
 from .views.service_views import *
 from .views.admin_views import AdminDashboardStatisticsView, AdminNotificationsView, AdminRequestsView, AdminRequestStatusUpdateView
 
+# Create a router for ViewSets
 router = DefaultRouter()
 router.register(r'service-requests', ServiceRequestViewSet)
 router.register(r'field-staff', FieldStaffViewSet)
@@ -53,21 +48,8 @@ urlpatterns = [
     path('get-service-now/', GetServiceNowView.as_view(), name='get-service-now'),
     path('bookings/', UserBookingsView.as_view(), name='user-bookings'),
     path('bookings/create/', CreateBookingView.as_view(), name='create-booking'),
-    path('bookings/<int:booking_id>/cancel/', CancelBookingView.as_view(), name='cancel-booking'),
-    path('bookings/clear-cancelled/', ClearCancelledBookingsView.as_view(), name='clear-cancelled-bookings'),
     path('calculate-distance-fee/', CalculateDistanceFeeView.as_view(), name='calculate_distance_fee'),
     path('pricing-plans/', PricingPlanListView.as_view(), name='pricing-plans'),
-    
-    # Chatbot endpoints
-    path('chatbot/message/', chatbot_webhook, name='chatbot-message'),
-    path('chatbot/intent/', analyze_intent, name='chatbot-intent'),
-    path('chatbot/history/', get_chat_history, name='chatbot-history'),
-
-    # Admin Dashboard Endpoints
-    path('admin/dashboard/statistics/', AdminDashboardStatisticsView.as_view(), name='admin-dashboard-statistics'),
-    path('admin/notifications/', AdminNotificationsView.as_view(), name='admin-notifications'),
-    path('admin/requests/', AdminRequestsView.as_view(), name='admin-requests'),
-    path('admin/requests/<str:request_id>/status/', AdminRequestStatusUpdateView.as_view(), name='admin-request-status-update'),
 ]
 
 urlpatterns += router.urls

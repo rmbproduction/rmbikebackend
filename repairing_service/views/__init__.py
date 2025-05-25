@@ -23,6 +23,7 @@ from .views import (
     CreateBookingView,
     CancelBookingView,
     ClearCancelledBookingsView,
+    GetServiceNowView,
     UserBookingsView
 )
 
@@ -55,5 +56,6 @@ __all__ = [
     'CreateBookingView',
     'CancelBookingView',
     'ClearCancelledBookingsView',
+    'GetServiceNowView',
     'UserBookingsView'
 ] 
