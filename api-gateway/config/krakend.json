@@ -241,6 +241,27 @@
           }
         }
       }]
+    },
+    {
+      "endpoint": "/api/marketplace/vehicles/{id}/similar/",
+      "method": "GET",
+      "output_encoding": "json",
+      "extra_config": {
+        "@auth": {
+          "disable": true
+        }
+      },
+      "backend": [{
+        "url_pattern": "/api/marketplace/vehicles/{id}/similar/",
+        "encoding": "json",
+        "method": "GET",
+        "host": ["http://api:8000"],
+        "extra_config": {
+          "@auth": {
+            "disable": true
+          }
+        }
+      }]
     }
   ]
 } 

@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -162,17 +162,31 @@ class VehicleViewSet(viewsets.ModelViewSet):
         """
         Return similar vehicles based on type, price range, and brand
         """
-        vehicle = self.get_object()
-        price_range = (vehicle.price * Decimal('0.8'), vehicle.price * Decimal('1.2'))
-        
-        similar = self.get_queryset().filter(
-            Q(vehicle_type=vehicle.vehicle_type) |
-            Q(brand=vehicle.brand),
-            price__range=price_range,
-            status=Vehicle.Status.AVAILABLE
-        ).exclude(id=vehicle.id)[:5]
-        
-        return Response(VehicleSerializer(similar, many=True).data)
+        try:
+            vehicle = self.get_object()
+            if not vehicle:
+                return Response([], status=status.HTTP_200_OK)
+
+            # Convert string price to decimal
+            try:
+                vehicle_price = Decimal(vehicle.price)
+            except (TypeError, ValueError, InvalidOperation):
+                return Response([], status=status.HTTP_200_OK)
+
+            price_range = (vehicle_price * Decimal('0.8'), vehicle_price * Decimal('1.2'))
+            
+            similar = self.get_queryset().filter(
+                Q(vehicle_type=vehicle.vehicle_type) |
+                Q(brand=vehicle.brand),
+                price__range=price_range,
+                status=Vehicle.Status.AVAILABLE
+            ).exclude(id=vehicle.id)[:5]
+            
+            serializer = self.get_serializer(similar, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error in similar vehicles: {str(e)}")
+            return Response([], status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)

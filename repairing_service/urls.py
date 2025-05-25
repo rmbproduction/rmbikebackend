@@ -22,6 +22,7 @@ from .views import (
     CreateBookingView,
     CancelBookingView,
     ClearCancelledBookingsView,
+    GetServiceNowView,
     # Chatbot views
     chatbot_webhook, 
     analyze_intent, 
@@ -49,6 +50,7 @@ urlpatterns = [
     path('cart/create/', create_cart, name='create-cart'),
     path('service-requests/<int:service_request_id>/responses/', ServiceRequestResponseDetailView.as_view(), name='service-request-response-detail'),
     path('service-requests/<int:service_request_id>/location/', LiveLocationView.as_view(), name='live-location'),
+    path('get-service-now/', GetServiceNowView.as_view(), name='get-service-now'),
     path('bookings/', UserBookingsView.as_view(), name='user-bookings'),
     path('bookings/create/', CreateBookingView.as_view(), name='create-booking'),
     path('bookings/<int:booking_id>/cancel/', CancelBookingView.as_view(), name='cancel-booking'),
