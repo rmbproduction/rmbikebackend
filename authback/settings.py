@@ -382,7 +382,7 @@ SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = False  # Must be False to allow JavaScript access
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_DOMAIN = 'repairmybike.up.railway.app'  # Your domain
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_TRUSTED_ORIGINS = [
@@ -392,6 +392,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://rmbfrontend.vercel.app',
     'https://repairmybike.in',
     'https://www.repairmybike.in',
+    'http://localhost:5173',
+
 ]
 
 # JWT settings
