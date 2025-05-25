@@ -69,6 +69,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    preferredLocation = serializers.CharField(source='preferred_location')
 
     class Meta:
         model = UserProfile
@@ -86,12 +87,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         vehicle_type = validated_data.pop('vehicle_type', None)
         manufacturer = validated_data.pop('manufacturer', None)
         
+        # Handle the preferred_location field
+        if 'preferred_location' in validated_data:
+            validated_data['preferred_location'] = validated_data.pop('preferred_location')
+        
         # Create the UserProfile instance
         profile = UserProfile.objects.create(**validated_data)
-        
-        # Here you could handle the vehicle fields if needed
-        # For example, create a UserVehicle instance with these values
-        # But that would need additional logic beyond this fix
         
         return profile
         
@@ -100,6 +101,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         validated_data.pop('vehicle_name', None)
         validated_data.pop('vehicle_type', None)
         validated_data.pop('manufacturer', None)
+        
+        # Handle the preferred_location field
+        if 'preferred_location' in validated_data:
+            validated_data['preferred_location'] = validated_data.pop('preferred_location')
         
         # Update the instance with the remaining fields
         for attr, value in validated_data.items():
@@ -110,7 +115,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if self.instance is None:  # Creation
-            required_fields = ['name', 'address', 'preferredLocation']
+            required_fields = ['name', 'address', 'preferred_location']
             for field in required_fields:
                 if field not in data:
                     raise serializers.ValidationError({

@@ -58,4 +58,4 @@ __all__ = [
     'ClearCancelledBookingsView',
     'GetServiceNowView',
     'UserBookingsView'
-] 
+]
