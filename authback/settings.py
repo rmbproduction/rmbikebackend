@@ -417,7 +417,7 @@ SIMPLE_JWT = {
     'AUTH_COOKIE_SECURE': True,                  # Only send over HTTPS
     'AUTH_COOKIE_HTTP_ONLY': True,              # Prevent JavaScript access
     'AUTH_COOKIE_PATH': '/',                    # Cookie path
-    'AUTH_COOKIE_SAMESITE': 'Lax',             # CSRF protection
+    'AUTH_COOKIE_SAMESITE': 'None',             # CSRF protection
 }
 
 # JWT Cookie Settings (for custom implementation)
@@ -425,7 +425,7 @@ JWT_AUTH_COOKIE = 'access_token'
 JWT_AUTH_REFRESH_COOKIE = 'refresh_token'
 JWT_AUTH_COOKIE_SECURE = True
 JWT_AUTH_COOKIE_HTTPONLY = True
-JWT_AUTH_COOKIE_SAMESITE = 'Lax'
+JWT_AUTH_COOKIE_SAMESITE = 'None'
 JWT_AUTH_COOKIE_PATH = '/'
 
 # Additional Security Headers
