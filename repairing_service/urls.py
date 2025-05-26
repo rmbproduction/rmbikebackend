@@ -26,7 +26,10 @@ from .views import (
     chatbot_webhook, 
     analyze_intent, 
     get_chat_history,
-    UserBookingsView
+    UserBookingsView,
+    # New direct service views
+    GetServiceNowView,
+    CancelServiceNowView
 )
 from .views.service_views import *
 from .views.admin_views import AdminDashboardStatisticsView, AdminNotificationsView, AdminRequestsView, AdminRequestStatusUpdateView
@@ -55,6 +58,10 @@ urlpatterns = [
     path('bookings/clear-cancelled/', ClearCancelledBookingsView.as_view(), name='clear-cancelled-bookings'),
     path('calculate-distance-fee/', CalculateDistanceFeeView.as_view(), name='calculate_distance_fee'),
     path('pricing-plans/', PricingPlanListView.as_view(), name='pricing-plans'),
+    
+    # Direct service booking endpoints
+    path('service-now/', GetServiceNowView.as_view(), name='get-service-now'),
+    path('service-now/<int:service_request_id>/cancel/', CancelServiceNowView.as_view(), name='cancel-service-now'),
     
     # Chatbot endpoints
     path('chatbot/message/', chatbot_webhook, name='chatbot-message'),

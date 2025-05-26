@@ -788,3 +788,221 @@ class UserBookingsView(APIView):
         except Exception as e:
             print(f"[ERROR] Failed to retrieve user bookings: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GetServiceNowView(APIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer]
+    
+    def post(self, request):
+        """
+        Create a direct service booking without cart
+        
+        Expected data:
+        {
+            "service_id": 1,  # Integer ID
+            "profile": {
+                "name": "Customer Name",
+                "email": "customer@example.com",
+                "phone": "9876543210",
+                "address": "123 Customer Street",
+                "city": "City",
+                "state": "State",
+                "postalCode": "123456"
+            },
+            "vehicle": {
+                "vehicle_type": 1,
+                "manufacturer": 1,
+                "model": 1
+            },
+            "scheduleDate": "2024-03-20",
+            "scheduleTime": "14:30",
+            "latitude": 12.345678,
+            "longitude": 78.901234,
+            "distanceFee": 10.00
+        }
+        """
+        try:
+            # Print request body for debugging
+            print(f"[DEBUG] Direct booking request data: {request.data}")
+            
+            # Get and validate service_id as integer
+            try:
+                service_id = int(request.data.get('service_id'))
+            except (TypeError, ValueError):
+                return Response(
+                    {'error': 'service_id must be a valid integer'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not service_id:
+                return Response(
+                    {'error': 'Service ID is required'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                service = Service.objects.get(id=service_id)
+            except Service.DoesNotExist:
+                return Response(
+                    {'error': f'Service with ID {service_id} not found'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Generate a booking reference
+            reference = f"RMB-{uuid.uuid4().hex[:8].upper()}"
+            
+            # Calculate service price
+            service_price = float(service.base_price)
+            
+            # Get location and distance fee data
+            latitude = request.data.get('latitude')
+            longitude = request.data.get('longitude')
+            distance_fee = request.data.get('distanceFee', 0)
+            
+            # Calculate total with distance fee
+            total_amount = service_price + float(distance_fee)
+            
+            # Get user profile and schedule data
+            profile_data = request.data.get('profile', {})
+            vehicle_data = request.data.get('vehicle', {})
+            scheduled_date = request.data.get('scheduleDate')
+            scheduled_time = request.data.get('scheduleTime')
+            
+            # Parse date and time if provided
+            parsed_date = None
+            if scheduled_date:
+                try:
+                    parsed_date = datetime.datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                except ValueError:
+                    return Response(
+                        {"error": "Invalid scheduleDate format. Please use YYYY-MM-DD format."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                parsed_date = datetime.date.today() + datetime.timedelta(days=2)
+            
+            # Parse time if provided
+            parsed_time = None
+            if scheduled_time:
+                try:
+                    parsed_time = datetime.datetime.strptime(scheduled_time, '%H:%M').time()
+                except ValueError:
+                    return Response(
+                        {"error": "Invalid scheduleTime format. Please use HH:MM format."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Create service request data
+            service_request_data = {
+                'user': request.user,
+                'customer_name': profile_data.get('name', request.user.username),
+                'customer_email': profile_data.get('email', request.user.email),
+                'customer_phone': profile_data.get('phone', ''),
+                'address': profile_data.get('address', ''),
+                'city': profile_data.get('city', ''),
+                'state': profile_data.get('state', ''),
+                'postal_code': profile_data.get('postalCode', ''),
+                'reference': reference,
+                'status': 'pending',
+                'total_amount': str(total_amount),
+                'scheduled_date': parsed_date,
+                'schedule_time': parsed_time,
+                'latitude': latitude,
+                'longitude': longitude,
+                'distance_fee': distance_fee,
+                'notes': f"Direct booking for {service.name}"
+            }
+            
+            # Add vehicle data if available
+            if vehicle_data.get('vehicle_type'):
+                service_request_data['vehicle_type_id'] = vehicle_data.get('vehicle_type')
+            if vehicle_data.get('manufacturer'):
+                service_request_data['manufacturer_id'] = vehicle_data.get('manufacturer')
+            if vehicle_data.get('model'):
+                service_request_data['vehicle_model_id'] = vehicle_data.get('model')
+            
+            # Create the service request
+            service_request = ServiceRequest.objects.create(**service_request_data)
+            
+            # Add the service
+            service_request.services.add(service)
+            
+            # Return the booking details
+            response_data = ServiceRequestSerializer(service_request).data
+            response_data['message'] = "Direct booking created successfully. Our service experts will contact you shortly."
+            return Response(response_data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"[ERROR] Direct booking creation failed: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CancelServiceNowView(APIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer]
+    
+    def post(self, request, service_request_id):
+        """
+        Cancel a direct service booking
+        
+        URL Parameters:
+        - service_request_id: The ID of the service request to cancel
+        """
+        try:
+            # Get the service request and verify ownership
+            service_request = get_object_or_404(
+                ServiceRequest, 
+                id=service_request_id,
+                user=request.user
+            )
+            
+            # Check if it's already cancelled
+            if service_request.status == 'cancelled':
+                return Response({
+                    "status": "error",
+                    "message": "This service request is already cancelled."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if it can be cancelled (not in progress or completed)
+            if service_request.status in ['in_progress', 'completed']:
+                return Response({
+                    "status": "error",
+                    "message": f"Cannot cancel a service request that is {service_request.status}."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get cancellation reason if provided
+            cancellation_reason = request.data.get('reason', 'Cancelled by user')
+            
+            # Cancel the service request
+            service_request.status = 'cancelled'
+            service_request.notes = (
+                f"{service_request.notes}\n"
+                f"Cancelled on {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Reason: {cancellation_reason}"
+            ).strip()
+            service_request.save()
+            
+            # Return success response with updated service request details
+            return Response({
+                "status": "success",
+                "message": "Service request cancelled successfully.",
+                "service_request": {
+                    "id": service_request.id,
+                    "reference": service_request.reference,
+                    "status": "cancelled",
+                    "cancelled_at": timezone.now().isoformat(),
+                    "reason": cancellation_reason
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Http404:
+            return Response({
+                "status": "error",
+                "message": "Service request not found or you don't have permission to cancel it."
+            }, status=status.HTTP_404_NOT_FOUND)
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to cancel service request: {str(e)}")
+            return Response({
+                "status": "error",
+                "message": "An error occurred while cancelling the service request."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
