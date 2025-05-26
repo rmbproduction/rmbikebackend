@@ -1,35 +1,48 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.db.models import Q
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
 class EmailBackend(ModelBackend):
     """
-    Custom authentication backend that allows login with either email or username
+    Custom authentication backend that allows login with email
     """
     def authenticate(self, request, username=None, password=None, **kwargs):
-        # Try to find user by either email or username
         try:
-            user = User.objects.get(
-                Q(username=username) | Q(email=username)
-            )
+            # Since USERNAME_FIELD is 'email', username parameter contains email
+            user = User.objects.get(email=username)
+            
+            # Log authentication attempt
+            logger.info(f"Authentication attempt for email: {username}")
             
             # Verify password
             if user.check_password(password):
-                # Check if email verification is required and the user is verified
-                if user.email_verified:
-                    return user
+                # Check if user is active and verified
+                if not user.is_active:
+                    logger.warning(f"Authentication failed: User {username} is not active")
+                    return None
+                    
+                if not user.email_verified:
+                    logger.warning(f"Authentication failed: User {username} email not verified")
+                    return None
+                
+                logger.info(f"Authentication successful for user: {username}")
+                return user
+            else:
+                logger.warning(f"Authentication failed: Invalid password for user {username}")
+                return None
                     
         except User.DoesNotExist:
-            # No user found with this email/username
+            logger.warning(f"Authentication failed: No user found with email {username}")
             return None
             
-        # Invalid credentials
-        return None
-        
     def get_user(self, user_id):
         try:
             return User.objects.get(pk=user_id)
         except User.DoesNotExist:
+            logger.warning(f"User retrieval failed: No user found with id {user_id}")
             return None 

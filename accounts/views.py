@@ -289,35 +289,57 @@ class PasswordResetConfirmView(generics.GenericAPIView):
 
 class LoginView(APIView):
     permission_classes = (permissions.AllowAny,)
+    serializer_class = LoginSerializer
     
     @method_decorator(ratelimit(key='ip', rate='5/m', method=['POST']))
     def post(self, request):
         try:
-            email = request.data.get('email')
-            password = request.data.get('password')
-            
-            if not email or not password:
+            # Use the serializer for validation
+            serializer = self.serializer_class(data=request.data)
+            if not serializer.is_valid():
                 return Response({
-                    "error": "Please provide both email and password"
+                    "error": serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password']
+            
+            # Check login attempts
+            try:
+                check_login_attempts(email)
+            except ValidationError as e:
+                return Response({
+                    "error": str(e)
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
             # Try to authenticate user
             user = authenticate(request, username=email, password=password)
             
             if not user:
+                # Increment failed login attempts
+                attempts = cache.get(f'login_attempts_{email}', 0)
+                cache.set(f'login_attempts_{email}', attempts + 1, timeout=1800)  # 30 minutes
+                
+                logger.warning(f"Failed login attempt for email: {email}")
                 return Response({
                     "error": "Invalid credentials"
                 }, status=status.HTTP_401_UNAUTHORIZED)
                 
             if not user.is_active:
+                logger.warning(f"Login attempt for inactive user: {email}")
                 return Response({
                     "error": "Account is not active"
                 }, status=status.HTTP_401_UNAUTHORIZED)
                 
             if not user.email_verified:
+                logger.warning(f"Login attempt for unverified email: {email}")
                 return Response({
                     "error": "Email not verified"
                 }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Reset login attempts on successful login
+            cache.delete(f'login_attempts_{email}')
+            cache.delete(f'account_lockout_{email}')
 
             # Get tokens and create response
             try:
@@ -326,6 +348,12 @@ class LoginView(APIView):
                 
                 if is_first_login:
                     logger.info(f"First login after verification for {email}")
+                
+                # Update last login
+                user.last_login = timezone.now()
+                user.save(update_fields=['last_login'])
+                
+                logger.info(f"Successful login for user: {email}")
                 
                 return Response({
                     "message": "Login successful",
@@ -336,10 +364,7 @@ class LoginView(APIView):
                         "email": user.email,
                         "email_verified": user.email_verified
                     },
-                    "tokens": {
-                        "access": tokens['access'],
-                        "refresh": tokens['refresh']
-                    }
+                    "tokens": tokens['tokens']
                 }, status=status.HTTP_200_OK)
 
             except Exception as e:
@@ -1030,7 +1055,7 @@ support@repairmybike.in
 
 class TokenRefreshView(APIView):
     permission_classes = (IsAuthenticated,)
-
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method=['POST']))
     def post(self, request):
         try:
@@ -1051,37 +1076,155 @@ class TokenRefreshView(APIView):
                     }, status=status.HTTP_401_UNAUTHORIZED)
 
                 # Get the user
-                try:
-                    user = User.objects.get(id=user_id)
-                except User.DoesNotExist:
+                user = User.objects.get(id=user_id)
+                
+                if not user.is_active:
                     return Response({
-                        "error": "User not found"
-                    }, status=status.HTTP_404_NOT_FOUND)
+                        "error": "User account is not active"
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+                    
+                if not user.email_verified:
+                    return Response({
+                        "error": "Email not verified"
+                    }, status=status.HTTP_401_UNAUTHORIZED)
 
                 # Generate new tokens
                 tokens = get_tokens_for_user(user)
-
+                
+                logger.info(f"Token refresh successful for user: {user.email}")
+                
                 return Response({
                     "message": "Token refresh successful",
                     "user": {
                         "id": user.id,
                         "username": user.username,
                         "email": user.email,
-                        "email_verified": user.email_verified
+                        "email_verified": user.email_verified,
+                        "name": getattr(user.profile, 'name', None),
+                        "phone": getattr(user.profile, 'phone', None),
+                        "address": getattr(user.profile, 'address', None),
+                        "preferred_location": getattr(user.profile, 'preferred_location', None),
+                        "isVerified": user.email_verified,
+                        "created_at": user.date_joined.isoformat(),
+                        "firstName": getattr(user.profile, 'first_name', None),
+                        "lastName": getattr(user.profile, 'last_name', None),
+                        "avatar": getattr(user.profile, 'profile_photo', None)
                     },
-                    "tokens": {
-                        "access": tokens['access'],
-                        "refresh": tokens['refresh']
-                    }
+                    "tokens": tokens['tokens']
                 }, status=status.HTTP_200_OK)
 
             except TokenError as e:
+                logger.warning(f"Token refresh failed: {str(e)}")
                 return Response({
                     "error": "Invalid or expired refresh token"
                 }, status=status.HTTP_401_UNAUTHORIZED)
+                
+            except User.DoesNotExist:
+                logger.warning(f"Token refresh failed: User not found")
+                return Response({
+                    "error": "User not found"
+                }, status=status.HTTP_404_NOT_FOUND)
 
         except Exception as e:
-            logger.error(f"Token refresh error: {str(e)}")
+            logger.error(f"Error refreshing token: {str(e)}")
             return Response({
                 "error": "An error occurred while refreshing the token"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ResendVerificationView(APIView):
+    """View for resending verification email"""
+    permission_classes = (permissions.AllowAny,)
+
+    @method_decorator(ratelimit(key='ip', rate='3/h', method=['POST']))
+    def post(self, request):
+        try:
+            if getattr(request, 'limited', False):
+                return Response({
+                    "error": "Too many verification attempts. Please try again later.",
+                    "detail": "Rate limit exceeded"
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+            email = request.data.get('email')
+            if not email:
+                return Response({
+                    "error": "Email is required"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                user = User.objects.get(email=email)
+                
+                if user.email_verified:
+                    return Response({
+                        "message": "Email is already verified"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Generate new verification token
+                token = get_random_string(64)
+                
+                # Store in both cache and database for redundancy
+                cache.set(f'email_verification_{token}', user.pk, timeout=86400)  # 24 hour expiry
+                
+                # Create or update verification token
+                EmailVerificationToken.objects.filter(user=user).delete()
+                EmailVerificationToken.objects.create(user=user, token=token)
+                
+                # Get the environment
+                environment = os.environ.get('ENVIRONMENT', 'development')
+                
+                # Generate verification URL
+                if environment == 'production':
+                    frontend_url = 'https://repairmybike.in'
+                else:
+                    origin = request.headers.get('Origin')
+                    if origin and 'localhost' in origin:
+                        frontend_url = origin
+                    else:
+                        referer = request.headers.get('Referer')
+                        if referer:
+                            from urllib.parse import urlparse
+                            parsed_uri = urlparse(referer)
+                            frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                        else:
+                            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
+                
+                # Safety check for production
+                if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
+                    frontend_url = 'https://repairmybike.in'
+                    
+                verification_url = f"{frontend_url}/verify-email/{token}"
+                
+                # Send verification email
+                send_mail(
+                    subject="Verify Your Email - Repair My Bike",
+                    message=f"""Please verify your email address by clicking the link below:
+
+{verification_url}
+
+This link will expire in 24 hours.
+
+If you did not request this verification, please ignore this email.
+
+Best regards,
+The Repair My Bike Team""",
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+                
+                logger.info(f"Verification email resent to: {email}")
+                
+                return Response({
+                    "message": "Verification email has been sent. Please check your inbox."
+                }, status=status.HTTP_200_OK)
+
+            except User.DoesNotExist:
+                # Don't reveal if email exists
+                return Response({
+                    "message": "If an account exists with this email, a verification link will be sent."
+                }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error resending verification email: {str(e)}")
+            return Response({
+                "error": "An error occurred while sending the verification email"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
