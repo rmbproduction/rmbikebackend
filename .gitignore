@@ -11,59 +11,49 @@ cert.key
 *.db
 
 # Python
-*.pyc
-*.pyo
-__pycache__/
 *.py[cod]
-*$py.class
+__pycache__/
+*.so
 .Python
-build/
-develop-eggs/
+*.egg
+*.egg-info/
 dist/
-downloads/
+build/
 eggs/
-.eggs/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
 lib/
 lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+
+# Django
+*.log
+*.pot
+*.pyc
+db.sqlite3
+media/
+staticfiles/
 
 # Virtual Environment
-v-env/
+.venv/
 venv/
 ENV/
-env/
-.env/
-.venv/
 
-# Logs
-*.log
-logs/
-log/
-
-# Frontend
-node_modules/
-dist/
-build/
-.next/
-out/
-.nuxt/
-
-# IDEs and Editors
-.vscode/
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
-*.swn
+
+# OS
 .DS_Store
 Thumbs.db
-*.sublime-workspace
-*.sublime-project
+
+# Local development settings
+local_settings.py
 
 # Coverage reports
 htmlcov/
@@ -80,12 +70,18 @@ coverage.xml
 celerybeat-schedule
 celerybeat.pid
 
-# Media and Static files in development
-media/
-static/
-staticfiles/
+# Frontend
+node_modules/
+dist/
+build/
+.next/
+out/
+.nuxt/
+
+# Logs
+*.log
+logs/
+log/
 
 # System Files
-.DS_Store
-Thumbs.db
 desktop.ini

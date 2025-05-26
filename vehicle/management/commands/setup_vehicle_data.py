@@ -26,6 +26,10 @@ class Command(BaseCommand):
             name='Hero',
             defaults={'name': 'Hero'}
         )
+        bajaj, _ = Manufacturer.objects.get_or_create(
+            name='Bajaj',
+            defaults={'name': 'Bajaj'}
+        )
 
         # Define proper vehicle models for each manufacturer
         honda_models = {
@@ -35,7 +39,6 @@ class Command(BaseCommand):
                 'CB Hornet',
                 'CB300R',
                 'CB350',
-            ,
                 'discover',
                 'shine'],
             'Scooter': [
