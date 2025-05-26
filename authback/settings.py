@@ -435,8 +435,8 @@ DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
 
 # JWT settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Reduced from 60 to 15 for better security
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Reduced from 30 to 7 days
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Increased from 15 to 30 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
@@ -451,18 +451,13 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
     'JTI_CLAIM': 'jti',
     
-    # Add these settings for better token handling
+    # Token handling settings
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=15),
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=30),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
     
-    # Add user claims
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
-    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
-    
-    # Add token obtain serializer
-    'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+    # Add these settings for better token handling
+    'TOKEN_OBTAIN_SERIALIZER': 'accounts.serializers.CustomTokenObtainPairSerializer',
     'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
     'TOKEN_VERIFY_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenVerifySerializer',
     
@@ -471,6 +466,15 @@ SIMPLE_JWT = {
         'rest_framework_simplejwt.token_blacklist.checks.BlacklistCheck',
     ],
 }
+
+# Cookie settings for JWT tokens
+JWT_AUTH_COOKIE = 'access_token'
+JWT_AUTH_REFRESH_COOKIE = 'refresh_token'
+JWT_AUTH_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
+JWT_AUTH_COOKIE_SAMESITE = 'Lax' if os.environ.get('ENVIRONMENT', 'development') == 'development' else 'Strict'
+JWT_AUTH_COOKIE_HTTP_ONLY = True
+JWT_AUTH_COOKIE_PATH = '/'
+JWT_AUTH_COOKIE_DOMAIN = None  # Will use the current domain
 
 # REST Framework settings
 REST_FRAMEWORK = {

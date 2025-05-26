@@ -290,16 +290,15 @@ class LoginView(APIView):
             email = serializer.validated_data['email']
             password = serializer.validated_data['password']
 
-            # Try to check login attempts, but don't fail if cache is down
+            # Try to check login attempts
             try:
                 check_login_attempts(email)
             except ValidationError as e:
                 return Response({"error": str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
             except Exception as e:
-                # Log the error but continue with authentication
                 logger.error(f"Error checking login attempts: {str(e)}")
 
-            # First check if user exists but is not verified
+            # Check if user exists but is not verified
             try:
                 user_exists = User.objects.filter(email=email).exists()
                 user_obj = User.objects.get(email=email) if user_exists else None
@@ -317,16 +316,14 @@ class LoginView(APIView):
             user = authenticate(request, email=email, password=password)
             
             if not user:
-                # Try to increment failed login attempts, but don't fail if cache is down
+                # Increment failed login attempts
                 try:
                     attempts = cache.get(f'login_attempts_{email}', 0)
                     cache.set(f'login_attempts_{email}', attempts + 1, timeout=3600)
                 except Exception as e:
                     logger.error(f"Error tracking failed login attempts: {str(e)}")
                 
-                # Log failed attempt
                 logger.warning(f"Failed login attempt for {email}")
-                
                 return Response({
                     "error": "Invalid credentials"
                 }, status=status.HTTP_401_UNAUTHORIZED)
@@ -338,7 +335,6 @@ class LoginView(APIView):
             except Exception as e:
                 logger.error(f"Error clearing login attempts: {str(e)}")
             
-            # Log successful login
             logger.info(f"Successful login for {email}")
 
             # Get tokens with custom claims
@@ -347,11 +343,14 @@ class LoginView(APIView):
                 
                 # Check if this is first login after verification
                 is_first_login = user.last_login is None
-                
-                # Update last login time
-                if is_first_login:
-                    logger.info(f"First login after verification for {email}")
-                
+
+                # Log token generation
+                logger.info("Generated login tokens", extra={
+                    'user_id': user.id,
+                    'access_token_length': len(tokens['access']),
+                    'refresh_token_length': len(tokens['refresh'])
+                })
+
                 return Response({
                     "message": "Login successful",
                     "is_first_login": is_first_login,
@@ -363,6 +362,7 @@ class LoginView(APIView):
                         "email_verified": user.email_verified
                     }
                 })
+                
             except Exception as e:
                 logger.error(f"Error generating tokens: {str(e)}")
                 return Response({
@@ -1047,3 +1047,57 @@ support@repairmybike.in
             'message': 'Contact form API endpoint',
             'instructions': 'Send a POST request with name, email, phone (optional), and message'
         }, status=status.HTTP_200_OK)
+
+class TokenRefreshView(APIView):
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        try:
+            # Get refresh token from request body
+            refresh_token = request.data.get('refresh')
+                
+            if not refresh_token:
+                return Response({
+                    "error": "No refresh token provided"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                # Validate and refresh token
+                refresh = RefreshToken(refresh_token)
+                
+                # Log refresh attempt
+                logger.info("Token refresh attempt", extra={
+                    'user_id': refresh.get('user_id'),
+                    'old_token_exp': datetime.fromtimestamp(refresh['exp']).isoformat(),
+                    'old_token_iat': datetime.fromtimestamp(refresh.get('iat', 0)).isoformat()
+                })
+                
+                # Get new tokens
+                access_token = str(refresh.access_token)
+                new_refresh_token = str(refresh)
+
+                # Log successful refresh
+                logger.info("Token refresh successful", extra={
+                    'user_id': refresh.get('user_id'),
+                    'new_access_exp': datetime.fromtimestamp(refresh.access_token['exp']).isoformat(),
+                    'new_refresh_exp': datetime.fromtimestamp(refresh['exp']).isoformat()
+                })
+
+                return Response({
+                    "access": access_token,
+                    "refresh": new_refresh_token
+                })
+
+            except TokenError as e:
+                logger.warning("Token refresh failed", extra={
+                    'error': str(e)
+                })
+                return Response({
+                    "error": "Invalid or expired refresh token"
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+        except Exception as e:
+            logger.error(f"Unexpected error during token refresh: {str(e)}")
+            return Response({
+                "error": "An unexpected error occurred during token refresh"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

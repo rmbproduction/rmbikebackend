@@ -5,8 +5,12 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from vehicle.models import VehicleModel, VehicleType, Manufacturer
 from .models import UserProfile, ContactMessage, EmailVerificationToken
+from django.utils import timezone
+from datetime import datetime
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 class UserSerializer(serializers.ModelSerializer):
     is_admin = serializers.BooleanField(read_only=True)
@@ -263,34 +267,70 @@ class ContactMessageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Message must be at least 10 characters")
         return value
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-
-        # Add custom claims
-        token['username'] = user.username
-        token['email'] = user.email
-        token['is_active'] = user.is_active
-        token['email_verified'] = user.email_verified
-        token['date_joined'] = str(user.date_joined)
-        
-        return token
-
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
 
-    # Add custom claims
+    # Add custom claims with proper UTC timestamps
+    now = timezone.now()
+    utc_timestamp = int(now.timestamp())
+
+    # Add claims to refresh token
     refresh['username'] = user.username
     refresh['email'] = user.email
     refresh['is_active'] = user.is_active
     refresh['email_verified'] = user.email_verified
-    refresh['date_joined'] = str(user.date_joined)
+    refresh['date_joined'] = user.date_joined.isoformat()
+    refresh['iat'] = utc_timestamp
+    refresh['token_type'] = 'refresh'
+
+    # Add claims to access token
+    refresh.access_token['username'] = user.username
+    refresh.access_token['email'] = user.email
+    refresh.access_token['is_active'] = user.is_active
+    refresh.access_token['email_verified'] = user.email_verified
+    refresh.access_token['iat'] = utc_timestamp
+    refresh.access_token['token_type'] = 'access'
+
+    # Log token generation details with UTC timestamps
+    logger.info(f"Generated tokens for user {user.email}", extra={
+        'access_exp': datetime.fromtimestamp(refresh.access_token['exp']).isoformat(),
+        'refresh_exp': datetime.fromtimestamp(refresh['exp']).isoformat(),
+        'iat': datetime.fromtimestamp(utc_timestamp).isoformat(),
+        'user_id': user.id,
+        'utc_now': now.isoformat()
+    })
 
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Add custom claims with proper UTC timestamps
+        now = timezone.now()
+        utc_timestamp = int(now.timestamp())
+        
+        token['username'] = user.username
+        token['email'] = user.email
+        token['is_active'] = user.is_active
+        token['email_verified'] = user.email_verified
+        token['date_joined'] = user.date_joined.isoformat()
+        token['iat'] = utc_timestamp
+        token['token_type'] = 'refresh'
+        
+        # Log token generation with UTC timestamps
+        logger.info(f"Generated token pair for user {user.email}", extra={
+            'exp': datetime.fromtimestamp(token['exp']).isoformat(),
+            'iat': datetime.fromtimestamp(utc_timestamp).isoformat(),
+            'user_id': user.id,
+            'utc_now': now.isoformat()
+        })
+        
+        return token
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
