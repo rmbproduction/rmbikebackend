@@ -24,6 +24,11 @@ from django.utils.html import strip_tags
 from django.conf import settings
 import base64
 import json
+import time
+import cloudinary.utils
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VehicleViewSet(viewsets.ModelViewSet):
     """
@@ -816,3 +821,65 @@ def email_vehicle_summary(request):
         return Response({
             'message': f'Failed to send vehicle summary email: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def secure_document_view(request, sell_request_id, document_type):
+    """
+    Secure endpoint to access vehicle documents
+    Only authenticated users and staff can access documents
+    """
+    try:
+        sell_request = get_object_or_404(SellRequest, id=sell_request_id)
+        
+        # Check if user is authorized to view this document
+        if not request.user.is_staff and request.user != sell_request.user:
+            raise PermissionDenied("You don't have permission to view this document")
+        
+        # Map document type to model field
+        document_map = {
+            'rc': 'registration_certificate',
+            'insurance': 'insurance_document',
+            'puc': 'puc_certificate',
+            'transfer': 'ownership_transfer',
+            'additional': 'additional_documents'
+        }
+        
+        if document_type not in document_map:
+            return Response({'error': 'Invalid document type'}, status=400)
+            
+        # Get the document field
+        document_field = getattr(sell_request, document_map[document_type])
+        
+        if not document_field:
+            return Response({'error': 'Document not found'}, status=404)
+            
+        # Generate a signed URL with short expiration
+        try:
+            # Get the Cloudinary resource
+            public_id = document_field.public_id
+            resource_type = document_field.resource_type or 'image'
+            
+            # Generate a signed URL that expires in 5 minutes
+            signed_url = cloudinary.utils.cloudinary_url(
+                public_id,
+                resource_type=resource_type,
+                type='upload',
+                secure=True,
+                sign_url=True,
+                expires_at=int(time.time()) + 300  # 5 minutes
+            )[0]
+            
+            return Response({'url': signed_url})
+            
+        except Exception as e:
+            logger.error(f"Error generating signed URL: {str(e)}")
+            return Response({'error': 'Error accessing document'}, status=500)
+            
+    except SellRequest.DoesNotExist:
+        return Response({'error': 'Sell request not found'}, status=404)
+    except PermissionDenied as e:
+        return Response({'error': str(e)}, status=403)
+    except Exception as e:
+        logger.error(f"Error in secure_document_view: {str(e)}")
+        return Response({'error': 'Internal server error'}, status=500)
