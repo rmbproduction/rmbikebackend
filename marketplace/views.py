@@ -857,47 +857,37 @@ def secure_document_view(request, sell_request_id, document_type):
         try:
             # Get the Cloudinary resource
             public_id = document_field.public_id
-            resource_type = document_field.resource_type or 'raw'
-            format = document_field.format
-
-            # For PDFs, we want to use the raw resource type and ensure proper delivery
-            if format == 'pdf':
-                resource_type = 'raw'
-                delivery_type = 'upload'
-                
-                # Generate a signed URL that expires in 5 minutes
-                signed_url = cloudinary.utils.cloudinary_url(
-                    public_id,
-                    resource_type=resource_type,
-                    type=delivery_type,
-                    format='pdf',
-                    secure=True,
-                    sign_url=True,
-                    expires_at=int(time.time()) + 300,  # 5 minutes
-                    flags='attachment:true',
-                    transformation=[
-                        {'fetch_format': 'auto'}
-                    ]
-                )[0]
-            else:
-                # For images and other documents
-                signed_url = cloudinary.utils.cloudinary_url(
-                    public_id,
-                    resource_type=resource_type,
-                    type='upload',
-                    secure=True,
-                    sign_url=True,
-                    expires_at=int(time.time()) + 300  # 5 minutes
-                )[0]
+            resource_type = 'raw'  # Always use raw for PDFs
+            
+            # Construct the Cloudinary URL manually for PDFs
+            cloud_name = settings.CLOUDINARY_CLOUD_NAME
+            
+            # Generate signature and other parameters
+            timestamp = int(time.time())
+            params = {
+                'public_id': public_id,
+                'timestamp': timestamp,
+                'resource_type': resource_type,
+            }
+            
+            signature = cloudinary.utils.api_sign_request(
+                params,
+                settings.CLOUDINARY_API_SECRET
+            )
+            
+            # Construct the final URL
+            url = f"https://res.cloudinary.com/{cloud_name}/raw/upload/{public_id}"
             
             return Response({
-                'url': signed_url,
-                'type': format or 'unknown',
-                'filename': f"{document_type}.{format}" if format else f"{document_type}"
+                'url': url,
+                'type': 'pdf',
+                'filename': f"{document_type}.pdf",
+                'public_id': public_id,
+                'resource_type': resource_type
             })
             
         except Exception as e:
-            logger.error(f"Error generating signed URL: {str(e)}")
+            logger.error(f"Error generating document URL: {str(e)}")
             return Response({'error': 'Error accessing document'}, status=500)
             
     except SellRequest.DoesNotExist:
