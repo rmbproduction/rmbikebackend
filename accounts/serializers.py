@@ -268,6 +268,27 @@ class ContactMessageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Message must be at least 10 characters")
         return value
 
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+
+    # Add custom claims
+    refresh['username'] = user.username
+    refresh['email'] = user.email
+    refresh['is_active'] = user.is_active
+    refresh['email_verified'] = user.email_verified
+    refresh['date_joined'] = str(user.date_joined)
+    refresh['roles'] = {
+        'is_admin': user.is_admin,
+        'is_staff_member': user.is_staff_member,
+        'is_field_staff': user.is_field_staff,
+        'is_customer': user.is_customer
+    }
+
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -279,23 +300,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['is_active'] = user.is_active
         token['email_verified'] = user.email_verified
         token['date_joined'] = str(user.date_joined)
+        token['roles'] = {
+            'is_admin': user.is_admin,
+            'is_staff_member': user.is_staff_member,
+            'is_field_staff': user.is_field_staff,
+            'is_customer': user.is_customer
+        }
         
         return token
-
-def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)
-
-    # Add custom claims
-    refresh['username'] = user.username
-    refresh['email'] = user.email
-    refresh['is_active'] = user.is_active
-    refresh['email_verified'] = user.email_verified
-    refresh['date_joined'] = str(user.date_joined)
-
-    return {
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
-    }
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()

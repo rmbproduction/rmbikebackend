@@ -378,12 +378,12 @@ LOGIN_REDIRECT_URL = '/login/success/'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
 
-# Cookie Security
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_HTTPONLY = False  # Must be False to allow JavaScript access
-CSRF_COOKIE_SAMESITE = 'None'
-CSRF_COOKIE_DOMAIN = 'repairmybike.up.railway.app'  # Your domain
+# Remove cookie-based settings
+SESSION_COOKIE_SECURE = False  # We're not using session cookies anymore
+CSRF_COOKIE_SECURE = False  # We're not using CSRF cookies anymore
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = None
+CSRF_COOKIE_DOMAIN = None
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_TRUSTED_ORIGINS = [
     'https://repairmybike.up.railway.app',
@@ -393,7 +393,6 @@ CSRF_TRUSTED_ORIGINS = [
     'https://repairmybike.in',
     'https://www.repairmybike.in',
     'http://localhost:5173',
-
 ]
 
 # JWT settings
@@ -412,6 +411,7 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
+    'JTI_CLAIM': 'jti',
 }
 
 # Additional Security Headers
@@ -469,7 +469,6 @@ DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
@@ -481,7 +480,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',  # Add this for file uploads
+        'rest_framework.parsers.MultiPartParser',
     ],
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',

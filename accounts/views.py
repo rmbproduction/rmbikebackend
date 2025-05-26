@@ -289,72 +289,35 @@ class PasswordResetConfirmView(generics.GenericAPIView):
 
 class LoginView(APIView):
     permission_classes = (permissions.AllowAny,)
-    serializer_class = LoginSerializer
-
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method=['POST']))
     def post(self, request):
         try:
-            if getattr(request, 'limited', False):
+            email = request.data.get('email')
+            password = request.data.get('password')
+            
+            if not email or not password:
                 return Response({
-                    "error": "Too many login attempts. Please try again later.",
-                    "detail": "Rate limit exceeded"
-                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+                    "error": "Please provide both email and password"
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-            serializer = LoginSerializer(data=request.data)
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
-            email = serializer.validated_data['email']
-            password = serializer.validated_data['password']
-
-            # Try to check login attempts
-            try:
-                check_login_attempts(email)
-            except ValidationError as e:
-                return Response({"error": str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            except Exception as e:
-                logger.error(f"Error checking login attempts: {str(e)}")
-
-            # Check if user exists but is not verified
-            try:
-                user_exists = User.objects.filter(email=email).exists()
-                user_obj = User.objects.get(email=email) if user_exists else None
-                
-                if user_exists and not user_obj.is_active:
-                    return Response({
-                        "error": "Please verify your email before logging in",
-                        "email_verification_required": True,
-                        "email": email
-                    }, status=status.HTTP_401_UNAUTHORIZED)
-            except Exception as e:
-                logger.error(f"Error checking user verification status: {str(e)}")
-
-            # Authenticate user
-            user = authenticate(request, email=email, password=password)
+            # Try to authenticate user
+            user = authenticate(request, username=email, password=password)
             
             if not user:
-                # Handle failed login attempts
-                try:
-                    attempts = cache.get(f'login_attempts_{email}', 0)
-                    cache.set(f'login_attempts_{email}', attempts + 1, timeout=3600)
-                except Exception as e:
-                    logger.error(f"Error tracking failed login attempts: {str(e)}")
-                
-                logger.warning(f"Failed login attempt for {email}")
-                
                 return Response({
                     "error": "Invalid credentials"
                 }, status=status.HTTP_401_UNAUTHORIZED)
-            
-            # Reset login attempts on successful login
-            try:
-                cache.delete(f'login_attempts_{email}')
-                cache.delete(f'account_lockout_{email}')
-            except Exception as e:
-                logger.error(f"Error clearing login attempts: {str(e)}")
-            
-            # Log successful login
-            logger.info(f"Successful login for {email}")
+                
+            if not user.is_active:
+                return Response({
+                    "error": "Account is not active"
+                }, status=status.HTTP_401_UNAUTHORIZED)
+                
+            if not user.email_verified:
+                return Response({
+                    "error": "Email not verified"
+                }, status=status.HTTP_401_UNAUTHORIZED)
 
             # Get tokens and create response
             try:
@@ -373,8 +336,10 @@ class LoginView(APIView):
                         "email": user.email,
                         "email_verified": user.email_verified
                     },
-                    "access": tokens['access'],
-                    "refresh": tokens['refresh']
+                    "tokens": {
+                        "access": tokens['access'],
+                        "refresh": tokens['refresh']
+                    }
                 }, status=status.HTTP_200_OK)
 
             except Exception as e:
