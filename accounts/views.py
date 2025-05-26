@@ -364,7 +364,7 @@ class LoginView(APIView):
                 if is_first_login:
                     logger.info(f"First login after verification for {email}")
                 
-                response = Response({
+                return Response({
                     "message": "Login successful",
                     "is_first_login": is_first_login,
                     "user": {
@@ -372,31 +372,10 @@ class LoginView(APIView):
                         "username": user.username,
                         "email": user.email,
                         "email_verified": user.email_verified
-                    }
-                })
-
-                # Set cookies
-                response.set_cookie(
-                    settings.JWT_AUTH_COOKIE,
-                    tokens['access'],
-                    max_age=3600,  # 1 hour
-                    httponly=True,
-                    secure=settings.JWT_AUTH_COOKIE_SECURE,
-                    samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
-                    path=settings.JWT_AUTH_COOKIE_PATH
-                )
-                
-                response.set_cookie(
-                    settings.JWT_AUTH_REFRESH_COOKIE,
-                    tokens['refresh'],
-                    max_age=30 * 24 * 3600,  # 30 days
-                    httponly=True,
-                    secure=settings.JWT_AUTH_COOKIE_SECURE,
-                    samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
-                    path=settings.JWT_AUTH_COOKIE_PATH
-                )
-                
-                return response
+                    },
+                    "access": tokens['access'],
+                    "refresh": tokens['refresh']
+                }, status=status.HTTP_200_OK)
 
             except Exception as e:
                 logger.error(f"Error generating tokens: {str(e)}")
@@ -409,20 +388,6 @@ class LoginView(APIView):
             return Response({
                 "error": "An unexpected error occurred. Please try again later."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from rest_framework_simplejwt.tokens import RefreshToken
-@login_required
-def success_page(request):
-    user = request.user
-    refresh = RefreshToken.for_user(user)
-    
-    return render(request, 'success.html', {
-        'access_token': str(refresh.access_token),
-        'refresh_token': str(refresh),
-        'user': user,
-    })
 
 def rate_limit_view(request, exception):
     """View to handle rate limit exceeded responses"""
@@ -506,47 +471,24 @@ class GoogleCallbackView(APIView):
             # Generate JWT tokens
             tokens = get_tokens_for_user(user)
             
-            # Create response with user data
-            response = Response({
-                "message": "Login successful",
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email
-                }
-            })
-
-            # Set HttpOnly cookies
-            response.set_cookie(
-                settings.JWT_AUTH_COOKIE,
-                tokens['access'],
-                max_age=3600,  # 1 hour
-                httponly=True,
-                secure=settings.JWT_AUTH_COOKIE_SECURE,
-                samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
-                path=settings.JWT_AUTH_COOKIE_PATH
-            )
-            
-            response.set_cookie(
-                settings.JWT_AUTH_REFRESH_COOKIE,
-                tokens['refresh'],
-                max_age=30 * 24 * 3600,  # 30 days
-                httponly=True,
-                secure=settings.JWT_AUTH_COOKIE_SECURE,
-                samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
-                path=settings.JWT_AUTH_COOKIE_PATH
-            )
-
             # Determine redirect URL based on environment
             if os.environ.get('ENVIRONMENT') == 'production':
                 frontend_url = 'https://repairmybike.in'
             else:
                 frontend_url = settings.FRONTEND_URL
 
-            response['Location'] = f"{frontend_url}/profile"
-            response.status_code = status.HTTP_302_FOUND
-            
-            return response
+            # Return tokens in response body
+            return Response({
+                "message": "Login successful",
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email
+                },
+                "access": tokens['access'],
+                "refresh": tokens['refresh'],
+                "redirect_url": f"{frontend_url}/profile"
+            }, status=status.HTTP_200_OK)
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Google OAuth error: {str(e)}")
@@ -821,43 +763,43 @@ class VerifyEmailView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LogoutView(APIView):
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (IsAuthenticated,)
 
     def post(self, request):
         try:
-            # Get refresh token from cookie
-            refresh_token = request.COOKIES.get(settings.JWT_AUTH_REFRESH_COOKIE)
+            # Get refresh token from request data
+            refresh_token = request.data.get('refresh_token')
             
             if refresh_token:
                 try:
                     # Blacklist the refresh token
                     token = RefreshToken(refresh_token)
                     token.blacklist()
-                except TokenError:
-                    # Token might be invalid, but we still want to clear cookies
-                    pass
-            
-            # Create response
-            response = Response({"message": "Successfully logged out"})
-            
-            # Delete cookies
-            response.delete_cookie(settings.JWT_AUTH_COOKIE)
-            response.delete_cookie(settings.JWT_AUTH_REFRESH_COOKIE)
-            
-            # Try to log the logout if user is authenticated
-            if request.user.is_authenticated:
-                logger.info(f"User {request.user.email} logged out successfully")
+                    
+                    # Try to log the logout
+                    logger.info(f"User {request.user.email} logged out successfully")
+                    
+                    return Response({
+                        "message": "Successfully logged out",
+                        "status": "success"
+                    })
+                except TokenError as e:
+                    return Response({
+                        "error": "Invalid token",
+                        "status": "error"
+                    }, status=status.HTTP_400_BAD_REQUEST)
             else:
-                logger.info("User logged out successfully (unauthenticated)")
-            
-            return response
+                return Response({
+                    "error": "Refresh token is required",
+                    "status": "error"
+                }, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
             logger.error(f"Logout error: {str(e)}")
-            return Response(
-                {"error": "An error occurred during logout"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({
+                "error": "An error occurred during logout",
+                "status": "error"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def accounts_root_view(request):
     return JsonResponse({"message": "Welcome to the Accounts API!"})
