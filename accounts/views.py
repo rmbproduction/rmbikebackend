@@ -1027,3 +1027,61 @@ support@repairmybike.in
             'message': 'Contact form API endpoint',
             'instructions': 'Send a POST request with name, email, phone (optional), and message'
         }, status=status.HTTP_200_OK)
+
+class TokenRefreshView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @method_decorator(ratelimit(key='ip', rate='5/m', method=['POST']))
+    def post(self, request):
+        try:
+            refresh_token = request.data.get('refresh')
+            if not refresh_token:
+                return Response({
+                    "error": "Refresh token is required"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                # Verify the token
+                token = RefreshToken(refresh_token)
+                user_id = token.payload.get('user_id')
+                
+                if not user_id:
+                    return Response({
+                        "error": "Invalid refresh token"
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+
+                # Get the user
+                try:
+                    user = User.objects.get(id=user_id)
+                except User.DoesNotExist:
+                    return Response({
+                        "error": "User not found"
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                # Generate new tokens
+                tokens = get_tokens_for_user(user)
+
+                return Response({
+                    "message": "Token refresh successful",
+                    "user": {
+                        "id": user.id,
+                        "username": user.username,
+                        "email": user.email,
+                        "email_verified": user.email_verified
+                    },
+                    "tokens": {
+                        "access": tokens['access'],
+                        "refresh": tokens['refresh']
+                    }
+                }, status=status.HTTP_200_OK)
+
+            except TokenError as e:
+                return Response({
+                    "error": "Invalid or expired refresh token"
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+        except Exception as e:
+            logger.error(f"Token refresh error: {str(e)}")
+            return Response({
+                "error": "An error occurred while refreshing the token"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
