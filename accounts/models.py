@@ -71,11 +71,6 @@ class UserProfile(models.Model):
     profile_photo = CloudinaryField('image', folder='profiles', null=True, blank=True)
     
     # Location fields
-    preferredLocation = models.CharField(max_length=255, blank=False, default='', 
-                                       verbose_name="Preferred Location",
-                                       help_text="Required field")
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     state = models.CharField(max_length=100, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)

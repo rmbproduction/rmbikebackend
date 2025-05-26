@@ -79,7 +79,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'email', 'username', 'name', 'address', 'profile_photo',
             'vehicle_name', 'vehicle_type', 'manufacturer',
-            'preferredLocation', 'latitude', 'longitude',
             'city', 'state', 'country', 'postal_code', 'phone'
         ]
         read_only_fields = ['email', 'username']
@@ -92,10 +91,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         
         # Create the UserProfile instance
         profile = UserProfile.objects.create(**validated_data)
-        
-        # Here you could handle the vehicle fields if needed
-        # For example, create a UserVehicle instance with these values
-        # But that would need additional logic beyond this fix
         
         return profile
         
@@ -114,7 +109,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if self.instance is None:  # Creation
-            required_fields = ['name', 'address', 'preferredLocation']
+            required_fields = ['name', 'address']
             for field in required_fields:
                 if field not in data:
                     raise serializers.ValidationError({
@@ -184,7 +179,6 @@ class UserProfileWriteSerializer(serializers.ModelSerializer):
         fields = [
             'email', 'name', 'username', 'address', 'profile_photo', 
             'vehicle_name', 'vehicle_type', 'manufacturer', 
-            'preferredLocation', 'latitude', 'longitude',
             'city', 'state', 'country', 'postal_code', 'phone'
         ]
         read_only_fields = ['email']
@@ -193,7 +187,7 @@ class UserProfileWriteSerializer(serializers.ModelSerializer):
         """Ensure all required fields are present and vehicle models match manufacturer"""
         # Required field validation
         required_fields = ['address', 'city', 'state', 'postal_code', 'phone', 
-                         'vehicle_name', 'vehicle_type', 'manufacturer', 'preferredLocation']
+                         'vehicle_name', 'vehicle_type', 'manufacturer']
         
         for field in required_fields:
             if field not in data:

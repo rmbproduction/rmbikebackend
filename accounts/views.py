@@ -343,14 +343,14 @@ class LoginView(APIView):
                 
                 # Check if this is first login after verification
                 is_first_login = user.last_login is None
-
+                
                 # Log token generation
                 logger.info("Generated login tokens", extra={
                     'user_id': user.id,
                     'access_token_length': len(tokens['access']),
                     'refresh_token_length': len(tokens['refresh'])
                 })
-
+                
                 return Response({
                     "message": "Login successful",
                     "is_first_login": is_first_login,
