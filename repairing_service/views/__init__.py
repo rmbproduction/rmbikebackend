@@ -23,11 +23,21 @@ from .views import (
     CreateBookingView,
     CancelBookingView,
     ClearCancelledBookingsView,
-    UserBookingsView
+    UserBookingsView,
+    GetServiceNowView,
+    CancelServiceNowView
 )
 
 # Import chatbot views
 from .chatbot import chatbot_webhook, analyze_intent, get_chat_history
+
+# Import admin views
+from .admin_views import (
+    AdminDashboardStatisticsView,
+    AdminNotificationsView,
+    AdminRequestsView,
+    AdminRequestStatusUpdateView
+)
 
 # Export all views
 __all__ = [
@@ -55,5 +65,12 @@ __all__ = [
     'CreateBookingView',
     'CancelBookingView',
     'ClearCancelledBookingsView',
-    'UserBookingsView'
+    'UserBookingsView',
+    'GetServiceNowView',
+    'CancelServiceNowView',
+    # Admin views
+    'AdminDashboardStatisticsView',
+    'AdminNotificationsView',
+    'AdminRequestsView',
+    'AdminRequestStatusUpdateView'
 ] 
