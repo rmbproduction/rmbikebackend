@@ -23,8 +23,23 @@ from django.db import transaction
 @api_view(['POST'])
 def create_cart(request):
     """Create a new cart and return its ID"""
-    cart = Cart.objects.create()
-    return Response({"id": cart.id, "status": "success"}, status=status.HTTP_201_CREATED)
+    print(f"[DEBUG] Creating cart for user: {request.user.username if request.user.is_authenticated else 'anonymous'}")
+    
+    # Create the cart with user if authenticated
+    cart = Cart.objects.create(
+        user=request.user if request.user.is_authenticated else None,
+        status='active'  # Explicitly set status to active
+    )
+    
+    # Store cart ID in session
+    request.session['cart_id'] = cart.id
+    print(f"[DEBUG] Created cart with ID: {cart.id}")
+    
+    return Response({
+        "id": cart.id,
+        "status": "success",
+        "message": "Cart created successfully"
+    }, status=status.HTTP_201_CREATED)
 
 class ManufacturerListView(generics.ListAPIView):
     queryset = Manufacturer.objects.all()
@@ -1015,10 +1030,24 @@ class UserCartsView(APIView):
 
     def get(self, request):
         """Get all carts for the current user"""
-        carts = Cart.objects.filter(
-            Q(user=request.user) | 
-            Q(id=request.session.get('cart_id'))
-        ).order_by('-created_at')
+        print(f"[DEBUG] Getting carts for user: {request.user.username}")
+        print(f"[DEBUG] Session cart_id: {request.session.get('cart_id')}")
         
-        serializer = CartSerializer(carts, many=True)
+        # Get all carts for the user
+        user_carts = Cart.objects.filter(user=request.user)
+        print(f"[DEBUG] Found {user_carts.count()} user carts")
+        
+        # Get session cart if it exists
+        session_cart_id = request.session.get('cart_id')
+        if session_cart_id:
+            session_cart = Cart.objects.filter(id=session_cart_id)
+            if session_cart.exists():
+                # Combine querysets if session cart exists
+                user_carts = user_carts | session_cart
+        
+        # Order by created_at
+        user_carts = user_carts.order_by('-created_at')
+        print(f"[DEBUG] Total carts after combining: {user_carts.count()}")
+        
+        serializer = CartSerializer(user_carts, many=True)
         return Response(serializer.data)
