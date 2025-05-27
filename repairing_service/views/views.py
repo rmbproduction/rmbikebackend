@@ -18,6 +18,7 @@ from django.utils import timezone
 from rest_framework.renderers import JSONRenderer
 from django.db.models import Q
 from django.db import transaction
+from rest_framework import serializers
 
 # Add this new API view for creating carts
 @api_view(['POST'])
@@ -85,8 +86,8 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
         vehicle_model_id = self.request.query_params.get('vehicle_model_id')
         
         try:
-            # First get the service by UUID
-            service = Service.objects.get(uuid=service_id)
+            # First get the service by ID
+            service = Service.objects.get(id=service_id)
             
             try:
                 # Then try to get the specific price for this combination
@@ -106,7 +107,7 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
                 return temp_price
                 
         except Service.DoesNotExist:
-            raise Http404(f"Service with UUID {service_id} does not exist")
+            raise Http404(f"Service with ID {service_id} does not exist")
 
 class CartDetailView(generics.RetrieveAPIView):
     serializer_class = CartSerializer
@@ -1025,6 +1026,30 @@ class CancelServiceNowView(APIView):
                 "message": "An error occurred while cancelling the service request."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class CartItemSerializer(serializers.ModelSerializer):
+    service_name = serializers.CharField(source='service.name')
+    service_price = serializers.DecimalField(source='service.base_price', max_digits=10, decimal_places=2)
+    
+    class Meta:
+        model = CartItem
+        fields = ['id', 'service_id', 'quantity', 'service_name', 'service_price']
+
+class DetailedCartSerializer(serializers.ModelSerializer):
+    items = CartItemSerializer(source='cartitem_set', many=True)
+    total_amount = serializers.SerializerMethodField()
+    total_items = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'created_at', 'modified_at', 'status', 'items', 'total_amount', 'total_items']
+
+    def get_total_amount(self, obj):
+        total = sum(item.service.base_price * item.quantity for item in obj.cartitem_set.all())
+        return str(total)
+
+    def get_total_items(self, obj):
+        return obj.cartitem_set.count()
+
 class UserCartsView(APIView):
     permission_classes = [IsAuthenticated]
     renderer_classes = [JSONRenderer]
@@ -1050,5 +1075,5 @@ class UserCartsView(APIView):
         user_carts = user_carts.order_by('-created_at')
         print(f"[DEBUG] Total carts after combining: {user_carts.count()}")
         
-        serializer = CartSerializer(user_carts, many=True)
+        serializer = DetailedCartSerializer(user_carts, many=True)
         return Response(serializer.data)
