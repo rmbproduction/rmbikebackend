@@ -316,12 +316,30 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
         ).order_by('-scheduled_date')
     
     def perform_create(self, serializer):
-        # Ensure the subscription belongs to the user
+        """
+        Check if visit can be created before saving
+        """
         subscription = serializer.validated_data.get('subscription')
-        if not self.request.user.is_staff and subscription.user != self.request.user:
-            raise permissions.PermissionDenied(
-                "You can only schedule visits for your own subscriptions."
-            )
+        
+        # Check if subscription is active
+        if not subscription.is_active:
+            raise serializers.ValidationError("Subscription is not active")
+        
+        # Check if there are remaining visits
+        if subscription.remaining_visits <= 0:
+            raise serializers.ValidationError("No remaining visits in subscription")
+        
+        # Check if user already has a scheduled visit for this date
+        scheduled_date = serializer.validated_data.get('scheduled_date')
+        existing_visit = VisitSchedule.objects.filter(
+            subscription=subscription,
+            scheduled_date=scheduled_date,
+            status=VisitSchedule.SCHEDULED
+        ).exists()
+        
+        if existing_visit:
+            raise serializers.ValidationError("Already have a visit scheduled for this date")
+        
         serializer.save()
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
@@ -476,4 +494,70 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
         return Response({
             'count': queryset.count(),
             'results': serializer.data
+        })
+
+    @action(detail=False, methods=['get'])
+    def check_availability(self, request):
+        """
+        Check if user can schedule a visit
+        """
+        # Get active subscription
+        subscription = UserSubscription.objects.filter(
+            user=request.user,
+            status='ACTIVE',
+            end_date__gt=timezone.now()
+        ).first()
+        
+        if not subscription:
+            return Response({
+                "can_schedule": False,
+                "reason": "No active subscription found",
+                "subscription": None
+            })
+            
+        # Check remaining visits
+        if subscription.remaining_visits <= 0:
+            return Response({
+                "can_schedule": False,
+                "reason": "No remaining visits in current subscription",
+                "subscription": UserSubscriptionSerializer(subscription).data
+            })
+            
+        return Response({
+            "can_schedule": True,
+            "remaining_visits": subscription.remaining_visits,
+            "subscription": UserSubscriptionSerializer(subscription).data
+        })
+
+    @action(detail=False, methods=['get'])
+    def available_slots(self, request):
+        """
+        Get available slots for scheduling
+        """
+        date = request.query_params.get('date')
+        if not date:
+            return Response(
+                {"detail": "Date parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Get all scheduled visits for the date
+        scheduled_visits = VisitSchedule.objects.filter(
+            scheduled_date=date,
+            status=VisitSchedule.SCHEDULED
+        ).values_list('scheduled_time', flat=True)
+        
+        # Define available time slots (example: 9 AM to 5 PM, hourly slots)
+        all_slots = [
+            f"{hour:02d}:00" for hour in range(9, 17)  # 9 AM to 4 PM
+        ]
+        
+        available_slots = [
+            slot for slot in all_slots
+            if slot not in scheduled_visits
+        ]
+        
+        return Response({
+            "date": date,
+            "available_slots": available_slots
         })
