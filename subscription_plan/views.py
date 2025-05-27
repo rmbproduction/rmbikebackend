@@ -131,7 +131,7 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def approve(self, request, pk=None):
         """
-        Admin action to approve a subscription request
+        Admin action to approve a subscription request and create UserSubscription
         """
         subscription_request = self.get_object()
         admin_notes = request.data.get('admin_notes', None)
@@ -141,12 +141,44 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
                 {"detail": "Only pending requests can be approved."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Calculate subscription duration based on plan variant
+        start_date = timezone.now()
+        duration_mapping = {
+            'QUARTERLY': timezone.timedelta(days=90),  # 3 months
+            'HALF_YEARLY': timezone.timedelta(days=180),  # 6 months
+            'YEARLY': timezone.timedelta(days=365),  # 1 year
+        }
+        duration = duration_mapping.get(subscription_request.plan_variant.duration_type)
+        end_date = start_date + duration
+
+        # Create UserSubscription
+        user_subscription = UserSubscription.objects.create(
+            user=subscription_request.user,
+            plan_variant=subscription_request.plan_variant,
+            start_date=start_date,
+            end_date=end_date,
+            status='ACTIVE',
+            remaining_visits=subscription_request.plan_variant.max_visits,
+            last_visit_date=None
+        )
         
-        # Ensure the service_request is updated as well
-        subscription_request.approve(admin_notes)
+        # Update subscription request status
+        subscription_request.status = SubscriptionRequest.APPROVED
+        subscription_request.approval_date = timezone.now()
+        subscription_request.admin_notes = admin_notes
+        subscription_request.save()
+
+        # Update service request if exists
+        if subscription_request.service_request:
+            subscription_request.service_request.status = ServiceRequest.STATUS_APPROVED
+            subscription_request.service_request.save()
         
         serializer = self.get_serializer(subscription_request)
-        return Response(serializer.data)
+        return Response({
+            'subscription_request': serializer.data,
+            'user_subscription': UserSubscriptionSerializer(user_subscription).data
+        })
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def reject(self, request, pk=None):
@@ -295,7 +327,7 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def complete(self, request, pk=None):
         """
-        Mark a visit as completed (admin only)
+        Mark a visit as completed and update subscription's remaining visits
         """
         visit = self.get_object()
         serializer = VisitCompletionSerializer(data=request.data)
@@ -303,17 +335,35 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        technician_notes = serializer.validated_data.get('technician_notes', None)
-        
         if visit.status != VisitSchedule.SCHEDULED:
             return Response(
                 {"detail": "Only scheduled visits can be marked as completed."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Update subscription's remaining visits and last visit date
+        subscription = visit.subscription
+        if subscription.remaining_visits > 0:
+            subscription.remaining_visits -= 1
+            subscription.last_visit_date = timezone.now()
+            subscription.save()
+        else:
+            return Response(
+                {"detail": "No remaining visits in the subscription."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Complete the visit
+        visit.status = VisitSchedule.COMPLETED
+        visit.completion_date = timezone.now()
+        visit.technician_notes = serializer.validated_data.get('technician_notes')
+        visit.save()
         
-        visit.complete(technician_notes)
         response_serializer = self.get_serializer(visit)
-        return Response(response_serializer.data)
+        return Response({
+            'visit': response_serializer.data,
+            'subscription': UserSubscriptionSerializer(subscription).data
+        })
     
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
@@ -358,3 +408,72 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(visits, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def subscription_status(self, request):
+        """
+        Get subscription status with remaining visits
+        """
+        user = request.user
+        subscription = UserSubscription.objects.filter(
+            user=user,
+            status=UserSubscription.ACTIVE,
+            end_date__gt=timezone.now()
+        ).first()
+
+        if not subscription:
+            return Response(
+                {"detail": "No active subscription found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = UserSubscriptionSerializer(subscription)
+        return Response({
+            'subscription': serializer.data,
+            'remaining_visits': subscription.remaining_visits,
+            'last_visit_date': subscription.last_visit_date,
+            'subscription_valid_until': subscription.end_date
+        })
+
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """
+        Search visits by date range and status
+        """
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        status = request.query_params.get('status')
+        
+        queryset = self.get_queryset()
+        
+        if start_date:
+            queryset = queryset.filter(scheduled_date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(scheduled_date__lte=end_date)
+        if status:
+            queryset = queryset.filter(status=status)
+            
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'count': queryset.count(),
+            'results': serializer.data
+        })
+
+    @action(detail=False, methods=['get'])
+    def by_subscription(self, request):
+        """
+        Get all visits for a specific subscription
+        """
+        subscription_id = request.query_params.get('subscription_id')
+        if not subscription_id:
+            return Response(
+                {"detail": "subscription_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        queryset = self.get_queryset().filter(subscription_id=subscription_id)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'count': queryset.count(),
+            'results': serializer.data
+        })
