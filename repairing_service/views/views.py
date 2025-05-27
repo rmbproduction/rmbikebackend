@@ -85,17 +85,18 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
         vehicle_model_id = self.request.query_params.get('vehicle_model_id')
         
         try:
-            # Try to get the specific price for this combination
-            return ServicePrice.objects.get(
-                service__uuid=service_id, 
-                manufacturer_id=manufacturer_id, 
-                vehicle_model_id=vehicle_model_id
-            )
-        except ServicePrice.DoesNotExist:
-            # If no specific price exists, get the base service and create a
-            # temporary ServicePrice object with the base price
+            # First get the service by UUID
+            service = Service.objects.get(uuid=service_id)
+            
             try:
-                service = Service.objects.get(uuid=service_id)
+                # Then try to get the specific price for this combination
+                return ServicePrice.objects.get(
+                    service=service,
+                    manufacturer_id=manufacturer_id,
+                    vehicle_model_id=vehicle_model_id
+                )
+            except ServicePrice.DoesNotExist:
+                # If no specific price exists, create a temporary ServicePrice object
                 temp_price = ServicePrice(
                     service=service,
                     manufacturer_id=manufacturer_id,
@@ -103,9 +104,9 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
                     price=service.base_price
                 )
                 return temp_price
-            except Service.DoesNotExist:
-                # If the service doesn't exist, return 404
-                raise Http404(f"Service with UUID {service_id} does not exist")
+                
+        except Service.DoesNotExist:
+            raise Http404(f"Service with UUID {service_id} does not exist")
 
 class CartDetailView(generics.RetrieveAPIView):
     serializer_class = CartSerializer
