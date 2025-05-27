@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils import timezone
 from .models import Plan, PlanVariant, SubscriptionRequest, UserSubscription, VisitSchedule
 
 
@@ -131,29 +132,95 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(VisitSchedule)
 class VisitScheduleAdmin(admin.ModelAdmin):
-    list_display = ('subscription_display', 'scheduled_date', 'status', 'completion_date')
-    list_filter = ('status', 'scheduled_date', 'completion_date')
-    search_fields = ('subscription__user__username', 'subscription__user__email', 'service_notes')
-    readonly_fields = ('created_at', 'updated_at')
+    list_display = [
+        'id', 'subscription', 'customer_name', 'scheduled_date', 
+        'status', 'completion_date', 'remaining_visits'
+    ]
+    list_filter = ['status', 'scheduled_date', 'completion_date']
+    search_fields = [
+        'subscription__user__username', 'subscription__user__email',
+        'technician_notes', 'service_notes'
+    ]
+    readonly_fields = ['completion_date']
+    actions = ['mark_as_completed', 'mark_as_cancelled']
     
-    def subscription_display(self, obj):
-        return f"{obj.subscription.user.username} - {obj.subscription.plan_variant.plan.name}"
-    subscription_display.short_description = 'Subscription'
+    def customer_name(self, obj):
+        return f"{obj.subscription.user.get_full_name() or obj.subscription.user.username}"
+    customer_name.short_description = 'Customer'
     
-    actions = ['complete_visits', 'cancel_visits']
+    def remaining_visits(self, obj):
+        return obj.subscription.remaining_visits
+    remaining_visits.short_description = 'Remaining Visits'
     
-    def complete_visits(self, request, queryset):
-        count = 0
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if not obj:  # Only for new visits
+            # Filter to show only active subscriptions
+            form.base_fields['subscription'].queryset = UserSubscription.objects.filter(
+                status='ACTIVE',
+                end_date__gt=timezone.now()
+            )
+        return form
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Only for new visits
+            # Validate remaining visits
+            if obj.subscription.remaining_visits <= 0:
+                self.message_user(request, "No remaining visits in subscription", level='ERROR')
+                return
+            
+            # Check for existing visits on same date
+            existing_visit = VisitSchedule.objects.filter(
+                subscription=obj.subscription,
+                scheduled_date=obj.scheduled_date,
+                status=VisitSchedule.SCHEDULED
+            ).exists()
+            
+            if existing_visit:
+                self.message_user(request, "Already have a visit scheduled for this date", level='ERROR')
+                return
+        
+        super().save_model(request, obj, form, change)
+    
+    @admin.action(description='Mark selected visits as completed')
+    def mark_as_completed(self, request, queryset):
         for visit in queryset.filter(status=VisitSchedule.SCHEDULED):
-            visit.complete("Completed via admin bulk action")
-            count += 1
-        self.message_user(request, f"{count} visits were marked as completed.")
-    complete_visits.short_description = "Mark selected visits as completed"
+            subscription = visit.subscription
+            
+            # Check if subscription has remaining visits
+            if subscription.remaining_visits > 0:
+                # Update visit
+                visit.status = VisitSchedule.COMPLETED
+                visit.completion_date = timezone.now()
+                visit.save()
+                
+                # Update subscription
+                subscription.remaining_visits -= 1
+                subscription.last_visit_date = timezone.now()
+                subscription.save()
+                
+                self.message_user(
+                    request, 
+                    f"Visit {visit.id} completed. Remaining visits: {subscription.remaining_visits}"
+                )
+            else:
+                self.message_user(
+                    request,
+                    f"Visit {visit.id} not completed. No remaining visits in subscription.",
+                    level='ERROR'
+                )
     
-    def cancel_visits(self, request, queryset):
-        count = 0
-        for visit in queryset.filter(status=VisitSchedule.SCHEDULED):
-            visit.cancel("Cancelled via admin bulk action")
-            count += 1
-        self.message_user(request, f"{count} visits were cancelled.")
-    cancel_visits.short_description = "Cancel selected visits"
+    @admin.action(description='Mark selected visits as cancelled')
+    def mark_as_cancelled(self, request, queryset):
+        updated = queryset.filter(status=VisitSchedule.SCHEDULED).update(
+            status=VisitSchedule.CANCELLED
+        )
+        self.message_user(request, f"{updated} visits were cancelled.")
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "subscription":
+            kwargs["queryset"] = UserSubscription.objects.filter(
+                status='ACTIVE',
+                end_date__gt=timezone.now()
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)

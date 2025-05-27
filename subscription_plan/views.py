@@ -561,3 +561,66 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
             "date": date,
             "available_slots": available_slots
         })
+
+    @action(detail=False, methods=['get'])
+    def visit_history(self, request):
+        """
+        Get completed visit history for a subscription
+        """
+        subscription_id = request.query_params.get('subscription_id')
+        
+        # If subscription_id is provided, get visits for that subscription
+        if subscription_id:
+            visits = self.get_queryset().filter(
+                subscription_id=subscription_id,
+                status=VisitSchedule.COMPLETED
+            ).order_by('-completion_date')
+        else:
+            # Get visits for all active subscriptions of the user
+            visits = self.get_queryset().filter(
+                subscription__user=request.user,
+                status=VisitSchedule.COMPLETED
+            ).order_by('-completion_date')
+        
+        serializer = self.get_serializer(visits, many=True)
+        return Response({
+            'count': visits.count(),
+            'results': serializer.data
+        })
+
+    @action(detail=False, methods=['get'])
+    def subscription_visit_summary(self, request):
+        """
+        Get summary of visits for active subscription
+        """
+        subscription = UserSubscription.objects.filter(
+            user=request.user,
+            status='ACTIVE',
+            end_date__gt=timezone.now()
+        ).first()
+        
+        if not subscription:
+            return Response({
+                "detail": "No active subscription found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        completed_visits = VisitSchedule.objects.filter(
+            subscription=subscription,
+            status=VisitSchedule.COMPLETED
+        ).order_by('-completion_date')
+        
+        upcoming_visits = VisitSchedule.objects.filter(
+            subscription=subscription,
+            status=VisitSchedule.SCHEDULED,
+            scheduled_date__gt=timezone.now()
+        ).order_by('scheduled_date')
+        
+        return Response({
+            "subscription": UserSubscriptionSerializer(subscription).data,
+            "total_visits_allowed": subscription.plan_variant.max_visits,
+            "completed_visits_count": completed_visits.count(),
+            "remaining_visits": subscription.remaining_visits,
+            "last_visit_date": subscription.last_visit_date,
+            "recent_completed_visits": self.get_serializer(completed_visits[:3], many=True).data,
+            "upcoming_visits": self.get_serializer(upcoming_visits, many=True).data
+        })
