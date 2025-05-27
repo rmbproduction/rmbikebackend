@@ -24,9 +24,17 @@ from django.db import transaction
 # Add this new API view for creating carts
 @api_view(['POST'])
 def create_cart(request):
-    """Create a new cart and return its ID"""
-    cart = Cart.objects.create()
-    return Response({"id": cart.id, "status": "success"}, status=status.HTTP_201_CREATED)
+    """Create a new cart and associate it with the user if authenticated"""
+    cart = Cart.objects.create(
+        user=request.user if request.user.is_authenticated else None
+    )
+    # Store cart ID in session for anonymous users
+    if not request.user.is_authenticated:
+        request.session['cart_id'] = cart.id
+    return Response({
+        "id": cart.id,
+        "status": "success"
+    }, status=status.HTTP_201_CREATED)
 
 class ManufacturerListView(generics.ListAPIView):
     queryset = Manufacturer.objects.all()
@@ -92,9 +100,20 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
 class CartDetailView(generics.RetrieveAPIView):
     serializer_class = CartSerializer
     permission_classes = [AllowAny]
+
     def get_object(self):
         cart_id = self.kwargs['cart_id']
-        return get_object_or_404(Cart, id=cart_id)
+        cart = get_object_or_404(Cart, id=cart_id)
+        
+        # Allow access if:
+        # 1. Cart belongs to the authenticated user
+        # 2. Cart ID matches the session cart ID for anonymous users
+        # 3. Cart has no user (legacy carts)
+        if (self.request.user.is_authenticated and cart.user == self.request.user) or \
+           (not self.request.user.is_authenticated and str(cart_id) == str(self.request.session.get('cart_id'))) or \
+           (cart.user is None):
+            return cart
+        raise Http404("Cart not found")
 
 class RemoveCartItemView(generics.DestroyAPIView):
     permission_classes = [AllowAny]
@@ -113,11 +132,19 @@ class RemoveCartItemView(generics.DestroyAPIView):
 class AddToCartView(generics.CreateAPIView):
     serializer_class = CartItemSerializer
     permission_classes = [AllowAny]
+
     def create(self, request, *args, **kwargs):
         try:
             cart_id = self.kwargs['cart_id']
             cart = get_object_or_404(Cart, id=cart_id)
             
+            # Associate cart with user if not already associated
+            if request.user.is_authenticated and not cart.user:
+                cart.user = request.user
+                cart.save()
+            elif not request.user.is_authenticated:
+                request.session['cart_id'] = cart.id
+
             # Validate required fields
             if 'service_id' not in request.data:
                 return Response(
@@ -601,3 +628,16 @@ class CartViewSet(viewsets.ModelViewSet):
             return Response(self.serialize_cart_item(cart_item))
         except Exception as e:
             return Response({'error': str(e)}, status=400)
+
+class UserCartsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get all carts for the current user"""
+        carts = Cart.objects.filter(
+            Q(user=request.user) | 
+            Q(id=request.session.get('cart_id'))
+        ).order_by('-created_at')
+        
+        serializer = CartSerializer(carts, many=True)
+        return Response(serializer.data)

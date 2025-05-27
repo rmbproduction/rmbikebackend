@@ -26,7 +26,8 @@ from .views.views import (
     ClearCancelledBookingsView,
     UserBookingsView,
     GetServiceNowView,
-    CancelServiceNowView
+    CancelServiceNowView,
+    UserCartsView
 )
 
 # Import chatbot views
@@ -56,10 +57,11 @@ urlpatterns = [
     path('vehicle-models/', VehicleModelListView.as_view(), name='vehicle-model-list'),
     path('service-categories/', ServiceCategoryListView.as_view(), name='service-category-list'),
     path('services/', ServiceListByCategoryView.as_view(), name='service-list'),
-    path('service-price/<int:service_id>/', ServicePriceDetailView.as_view(), name='service-price-detail'),
+    path('service-price/<uuid:service_id>/', ServicePriceDetailView.as_view(), name='service-price-detail'),
     
     # Cart related endpoints
     path('cart/create/', create_cart, name='create-cart'),
+    path('cart/list/', UserCartsView.as_view(), name='user-carts'),
     path('cart/<int:cart_id>/', CartDetailView.as_view(), name='cart-detail'),
     path('cart/<int:cart_id>/add/', AddToCartView.as_view(), name='add-to-cart'),
     path('cart/<int:cart_id>/update-item/', UpdateCartItemView.as_view(), name='update-cart-item'),

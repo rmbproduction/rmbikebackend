@@ -99,8 +99,32 @@ class ServicePrice(models.Model):
         return f"{self.service.name} - {self.price}"
 
 class Cart(models.Model):
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('active', 'Active'),
+            ('abandoned', 'Abandoned'),
+            ('completed', 'Completed')
+        ],
+        default='active'
+    )
+
     def __str__(self):
-        return f"Cart {self.id}"
+        return f"Cart {self.id} - {self.status}"
+
+    @property
+    def total_items(self):
+        return self.items.count()
+
+    @property
+    def total_quantity(self):
+        return sum(item.quantity for item in self.items.all())
+
+    class Meta:
+        ordering = ['-created_at']
 
 class CartItem(models.Model):
     class Meta:

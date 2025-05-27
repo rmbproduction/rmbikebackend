@@ -16,6 +16,8 @@ import json
 from django.http import Http404
 from django.utils import timezone
 from rest_framework.renderers import JSONRenderer
+from django.db.models import Q
+from django.db import transaction
 
 # Add this new API view for creating carts
 @api_view(['POST'])
@@ -70,7 +72,7 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
         try:
             # Try to get the specific price for this combination
             return ServicePrice.objects.get(
-                service_id=service_id, 
+                service__uuid=service_id, 
                 manufacturer_id=manufacturer_id, 
                 vehicle_model_id=vehicle_model_id
             )
@@ -78,7 +80,7 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
             # If no specific price exists, get the base service and create a
             # temporary ServicePrice object with the base price
             try:
-                service = Service.objects.get(id=service_id)
+                service = Service.objects.get(uuid=service_id)
                 temp_price = ServicePrice(
                     service=service,
                     manufacturer_id=manufacturer_id,
@@ -88,7 +90,7 @@ class ServicePriceDetailView(generics.RetrieveAPIView):
                 return temp_price
             except Service.DoesNotExist:
                 # If the service doesn't exist, return 404
-                raise Http404(f"Service with ID {service_id} does not exist")
+                raise Http404(f"Service with UUID {service_id} does not exist")
 
 class CartDetailView(generics.RetrieveAPIView):
     serializer_class = CartSerializer
@@ -1006,3 +1008,17 @@ class CancelServiceNowView(APIView):
                 "status": "error",
                 "message": "An error occurred while cancelling the service request."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserCartsView(APIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        """Get all carts for the current user"""
+        carts = Cart.objects.filter(
+            Q(user=request.user) | 
+            Q(id=request.session.get('cart_id'))
+        ).order_by('-created_at')
+        
+        serializer = CartSerializer(carts, many=True)
+        return Response(serializer.data)

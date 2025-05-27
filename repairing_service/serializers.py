@@ -67,15 +67,15 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'cart', 'service', 'service_name', 'quantity', 'price']
 
 class CartSerializer(serializers.ModelSerializer):
-    items = serializers.SerializerMethodField()
-    
-    def get_items(self, obj):
-        cart_items = CartItem.objects.filter(cart=obj)
-        return CartItemSerializer(cart_items, many=True).data
+    items = CartItemSerializer(many=True, read_only=True)
+    total_items = serializers.IntegerField(read_only=True)
+    total_quantity = serializers.IntegerField(read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
     
     class Meta:
         model = Cart
-        fields = ['id', 'items']
+        fields = ['id', 'user', 'items', 'created_at', 'modified_at', 'status', 'total_items', 'total_quantity']
+        read_only_fields = ['created_at', 'modified_at', 'status']
 
 class FieldStaffSerializer(serializers.ModelSerializer):
     class Meta:
