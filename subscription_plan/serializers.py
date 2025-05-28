@@ -91,8 +91,6 @@ class SubscriptionRequestSerializer(serializers.ModelSerializer):
             # Customer information fields
             'customer_name', 'customer_email', 'customer_phone',
             'address', 'city', 'state', 'postal_code',
-            # Schedule information
-            'schedule_date', 'schedule_time',
             # Service request relation
             'service_request', 'service_request_id', 'service_reference', 'service_status'
         ]
@@ -132,7 +130,6 @@ class SubscriptionRequestSerializer(serializers.ModelSerializer):
             city=validated_data.get('city'),
             state=validated_data.get('state'),
             postal_code=validated_data.get('postal_code'),
-            scheduled_date=validated_data.get('schedule_date'),
             reference=f"SUB-{user.id}-{validated_data.get('plan_variant').id}",
             status=ServiceRequest.STATUS_PENDING,
             notes="Subscription request",
@@ -155,8 +152,6 @@ class SubscriptionRequestSerializer(serializers.ModelSerializer):
             city=validated_data.get('city'),
             state=validated_data.get('state'),
             postal_code=validated_data.get('postal_code'),
-            schedule_date=validated_data.get('schedule_date'),
-            schedule_time=validated_data.get('schedule_time'),
             service_request=service_request
         )
             

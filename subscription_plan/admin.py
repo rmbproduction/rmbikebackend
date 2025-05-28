@@ -63,11 +63,7 @@ class SubscriptionRequestAdmin(admin.ModelAdmin):
         ('Customer Information', {
             'fields': ('customer_name', 'customer_email', 'customer_phone', 'address', 'city', 'state', 'postal_code'),
             'classes': ('collapse',)
-        }),
-        ('Schedule Information', {
-            'fields': ('schedule_date', 'schedule_time'),
-            'classes': ('collapse',)
-        }),
+        })
     )
     
     def plan_display(self, obj):
