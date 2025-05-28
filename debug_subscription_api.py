@@ -3,6 +3,9 @@ import os
 import sys
 import django
 import traceback
+from django.utils import timezone
+from subscription_plan.models import SubscriptionRequest, UserSubscription
+from django.contrib.auth import get_user_model
 
 # Set up Django environment
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'authback.settings')
@@ -52,7 +55,47 @@ def debug_subscription_plans_api():
         print(f"Error encountered: {e}")
         traceback.print_exc()
 
+def debug_subscription_approval():
+    # Get all pending subscription requests
+    pending_requests = SubscriptionRequest.objects.filter(status=SubscriptionRequest.PENDING)
+    print(f"Found {pending_requests.count()} pending requests")
+    
+    for request in pending_requests:
+        print(f"\nChecking request {request.id} for user {request.user.username}")
+        
+        # Check if user already has active subscription
+        active_subs = UserSubscription.objects.filter(
+            user=request.user,
+            status=UserSubscription.ACTIVE
+        )
+        print(f"User has {active_subs.count()} active subscriptions")
+        
+        # Try approving the request
+        try:
+            print("Attempting to approve request...")
+            request.approve()
+            print("Request approved successfully")
+            
+            # Verify subscription was created
+            new_sub = UserSubscription.objects.filter(
+                user=request.user,
+                plan_variant=request.plan_variant,
+                status=UserSubscription.ACTIVE
+            ).order_by('-created_at').first()
+            
+            if new_sub:
+                print(f"New subscription created: {new_sub.id}")
+                print(f"Start date: {new_sub.start_date}")
+                print(f"End date: {new_sub.end_date}")
+                print(f"Remaining visits: {new_sub.remaining_visits}")
+            else:
+                print("ERROR: No subscription was created!")
+                
+        except Exception as e:
+            print(f"Error during approval: {str(e)}")
+
 if __name__ == "__main__":
     print("Starting subscription plans API debug script...")
     debug_subscription_plans_api()
-    print("\nScript completed.") 
+    print("\nScript completed.")
+    debug_subscription_approval() 
