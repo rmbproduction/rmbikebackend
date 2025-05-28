@@ -129,7 +129,6 @@ class SubscriptionRequest(models.Model):
     postal_code = models.CharField(max_length=20, blank=True, null=True)
     
     # Schedule information
-    schedule_date = models.DateField(blank=True, null=True)
     schedule_time = models.CharField(max_length=10, blank=True, null=True, help_text="Format: HH:MM")
     
     # Link to ServiceRequest
