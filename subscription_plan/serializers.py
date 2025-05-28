@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Plan, PlanVariant, SubscriptionRequest, UserSubscription, VisitSchedule
 from repairing_service.models import ServiceRequest
+import time
 
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -120,42 +121,58 @@ class SubscriptionRequestSerializer(serializers.ModelSerializer):
                 "You already have a pending subscription request."
             )
         
-        # Create a ServiceRequest for this subscription
-        service_request = ServiceRequest.objects.create(
-            user=user,
-            customer_name=validated_data.get('customer_name'),
-            customer_email=validated_data.get('customer_email'),
-            customer_phone=validated_data.get('customer_phone'),
-            address=validated_data.get('address'),
-            city=validated_data.get('city'),
-            state=validated_data.get('state'),
-            postal_code=validated_data.get('postal_code'),
-            reference=f"SUB-{user.id}-{validated_data.get('plan_variant').id}",
-            status=ServiceRequest.STATUS_PENDING,
-            notes="Subscription request",
-            vehicle_type_id=validated_data.get('vehicle_type').id if validated_data.get('vehicle_type') else None,
-            manufacturer_id=validated_data.get('manufacturer').id if validated_data.get('manufacturer') else None,
-            vehicle_model_id=validated_data.get('vehicle_model').id if validated_data.get('vehicle_model') else None
-        )
+        # Generate a unique reference number using timestamp
+        timestamp = int(time.time())
+        reference = f"SUB-{user.id}-{validated_data.get('plan_variant').id}-{timestamp}"
         
-        # Create the subscription request and link to the service request
-        subscription_request = SubscriptionRequest.objects.create(
-            user=user,
-            plan_variant=validated_data.get('plan_variant'),
-            vehicle_type=validated_data.get('vehicle_type'),
-            manufacturer=validated_data.get('manufacturer'),
-            vehicle_model=validated_data.get('vehicle_model'),
-            customer_name=validated_data.get('customer_name'),
-            customer_email=validated_data.get('customer_email'),
-            customer_phone=validated_data.get('customer_phone'),
-            address=validated_data.get('address'),
-            city=validated_data.get('city'),
-            state=validated_data.get('state'),
-            postal_code=validated_data.get('postal_code'),
-            service_request=service_request
-        )
+        # Check if reference already exists (just to be extra safe)
+        while ServiceRequest.objects.filter(reference=reference).exists():
+            timestamp = int(time.time())
+            reference = f"SUB-{user.id}-{validated_data.get('plan_variant').id}-{timestamp}"
+        
+        try:
+            # Create a ServiceRequest for this subscription
+            service_request = ServiceRequest.objects.create(
+                user=user,
+                customer_name=validated_data.get('customer_name'),
+                customer_email=validated_data.get('customer_email'),
+                customer_phone=validated_data.get('customer_phone'),
+                address=validated_data.get('address'),
+                city=validated_data.get('city'),
+                state=validated_data.get('state'),
+                postal_code=validated_data.get('postal_code'),
+                reference=reference,
+                status=ServiceRequest.STATUS_PENDING,
+                notes="Subscription request",
+                vehicle_type_id=validated_data.get('vehicle_type').id if validated_data.get('vehicle_type') else None,
+                manufacturer_id=validated_data.get('manufacturer').id if validated_data.get('manufacturer') else None,
+                vehicle_model_id=validated_data.get('vehicle_model').id if validated_data.get('vehicle_model') else None
+            )
             
-        return subscription_request
+            # Create the subscription request and link to the service request
+            subscription_request = SubscriptionRequest.objects.create(
+                user=user,
+                plan_variant=validated_data.get('plan_variant'),
+                vehicle_type=validated_data.get('vehicle_type'),
+                manufacturer=validated_data.get('manufacturer'),
+                vehicle_model=validated_data.get('vehicle_model'),
+                customer_name=validated_data.get('customer_name'),
+                customer_email=validated_data.get('customer_email'),
+                customer_phone=validated_data.get('customer_phone'),
+                address=validated_data.get('address'),
+                city=validated_data.get('city'),
+                state=validated_data.get('state'),
+                postal_code=validated_data.get('postal_code'),
+                service_request=service_request
+            )
+                
+            return subscription_request
+            
+        except Exception as e:
+            # If anything fails during creation, make sure to clean up
+            if 'service_request' in locals():
+                service_request.delete()
+            raise serializers.ValidationError(f"Failed to create subscription request: {str(e)}")
 
 
 class UserSubscriptionSerializer(serializers.ModelSerializer):
