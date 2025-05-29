@@ -5,11 +5,13 @@ from rest_framework import viewsets, permissions, status, generics, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
+from datetime import datetime, timedelta
 from .models import Plan, PlanVariant, SubscriptionRequest, UserSubscription, VisitSchedule
 from .serializers import (
     PlanSerializer, PlanVariantSerializer, SubscriptionRequestSerializer,
     UserSubscriptionSerializer, VisitScheduleSerializer, 
-    VisitCompletionSerializer, VisitCancellationSerializer
+    VisitCompletionSerializer, VisitCancellationSerializer,
+    PreferredDateSerializer
 )
 from repairing_service.models import ServiceRequest
 
@@ -623,4 +625,114 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
             "last_visit_date": subscription.last_visit_date,
             "recent_completed_visits": self.get_serializer(completed_visits[:3], many=True).data,
             "upcoming_visits": self.get_serializer(upcoming_visits, many=True).data
+        })
+
+    @action(detail=False, methods=['post'])
+    def schedule_preferred_date(self, request):
+        """
+        Schedule a visit for user's preferred date and time
+        """
+        serializer = PreferredDateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get validated data
+        subscription = serializer.validated_data['subscription']
+        scheduled_datetime = serializer.validated_data['scheduled_datetime']
+        notes = serializer.validated_data.get('notes', '')
+
+        # Verify user owns the subscription
+        if subscription.user != request.user:
+            return Response(
+                {"detail": "You do not have permission to schedule visits for this subscription."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Create the visit
+        visit = VisitSchedule.objects.create(
+            subscription=subscription,
+            scheduled_date=scheduled_datetime,
+            service_notes=notes,
+            status=VisitSchedule.SCHEDULED
+        )
+
+        response_serializer = self.get_serializer(visit)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def available_dates(self, request):
+        """
+        Get available dates for scheduling in the next 30 days
+        """
+        # Get the date range (next 30 days)
+        start_date = timezone.now().date()
+        end_date = start_date + timedelta(days=30)
+        
+        # Get all scheduled visits in this date range
+        scheduled_visits = VisitSchedule.objects.filter(
+            scheduled_date__date__range=(start_date, end_date),
+            status=VisitSchedule.SCHEDULED
+        ).values('scheduled_date__date').distinct()
+        
+        # Create a list of dates
+        date_list = []
+        current_date = start_date
+        while current_date <= end_date:
+            # Check if the date is not fully booked
+            visits_on_date = scheduled_visits.filter(scheduled_date__date=current_date).count()
+            
+            # Assuming maximum 8 visits per day (9 AM to 5 PM, hourly slots)
+            if visits_on_date < 8:
+                # Don't include weekends
+                if current_date.weekday() < 5:  # Monday = 0, Sunday = 6
+                    date_list.append({
+                        'date': current_date.isoformat(),
+                        'available_slots': 8 - visits_on_date
+                    })
+            
+            current_date += timedelta(days=1)
+        
+        return Response({
+            'available_dates': date_list
+        })
+
+    @action(detail=False, methods=['get'])
+    def available_times(self, request):
+        """
+        Get available time slots for a specific date
+        """
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response(
+                {"detail": "Date parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"detail": "Invalid date format. Use YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get all scheduled visits for the date
+        scheduled_times = VisitSchedule.objects.filter(
+            scheduled_date__date=selected_date,
+            status=VisitSchedule.SCHEDULED
+        ).values_list('scheduled_date__time', flat=True)
+
+        # Define available time slots (9 AM to 5 PM, hourly slots)
+        all_slots = []
+        for hour in range(9, 17):  # 9 AM to 4 PM
+            slot_time = timezone.datetime.strptime(f"{hour:02d}:00", "%H:%M").time()
+            if slot_time not in scheduled_times:
+                all_slots.append({
+                    'time': slot_time.strftime('%H:%M'),
+                    'display_time': slot_time.strftime('%I:%M %p')
+                })
+
+        return Response({
+            'date': date_str,
+            'available_times': all_slots
         })

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Plan, PlanVariant, SubscriptionRequest, UserSubscription, VisitSchedule
 from repairing_service.models import ServiceRequest
+from django.utils import timezone
 import time
 
 
@@ -243,4 +244,47 @@ class VisitCancellationSerializer(serializers.Serializer):
     """
     Serializer for cancelling a visit
     """
-    cancellation_notes = serializers.CharField(required=False, allow_blank=True) 
+    cancellation_notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class PreferredDateSerializer(serializers.Serializer):
+    """
+    Serializer for selecting preferred visit date and time
+    """
+    preferred_date = serializers.DateField(required=True)
+    preferred_time = serializers.TimeField(required=True)
+    subscription = serializers.PrimaryKeyRelatedField(
+        queryset=UserSubscription.objects.filter(status=UserSubscription.ACTIVE)
+    )
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        # Combine date and time into datetime
+        preferred_datetime = timezone.datetime.combine(
+            data['preferred_date'],
+            data['preferred_time'],
+            tzinfo=timezone.get_current_timezone()
+        )
+
+        # Check if date is in the future
+        if preferred_datetime <= timezone.now():
+            raise serializers.ValidationError("Selected date and time must be in the future")
+
+        # Check if subscription is active and has remaining visits
+        subscription = data['subscription']
+        if not subscription.is_active():
+            raise serializers.ValidationError("Subscription is not active or has no remaining visits")
+
+        # Check if user already has a visit scheduled for this date
+        existing_visit = VisitSchedule.objects.filter(
+            subscription=subscription,
+            scheduled_date__date=data['preferred_date'],
+            status=VisitSchedule.SCHEDULED
+        ).exists()
+
+        if existing_visit:
+            raise serializers.ValidationError("You already have a visit scheduled for this date")
+
+        # Store the combined datetime
+        data['scheduled_datetime'] = preferred_datetime
+        return data 
