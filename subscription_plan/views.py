@@ -710,18 +710,58 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
         """
         Get available time slots for a specific date
         """
+        # First check if user has an active or future subscription
+        subscription = UserSubscription.objects.filter(
+            user=request.user,
+            status='ACTIVE',
+            end_date__gt=timezone.now()
+        ).order_by('start_date').first()
+
+        if not subscription:
+            return Response({
+                "detail": "No active or upcoming subscription found. Please subscribe to schedule visits.",
+                "subscription_required": True
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get date parameter
         date_str = request.query_params.get('date')
         if not date_str:
+            # If no date provided, return today's available times
+            selected_date = timezone.now().date()
+            date_str = selected_date.isoformat()
+        else:
+            try:
+                selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {"detail": "Invalid date format. Use YYYY-MM-DD"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Validate selected date is within subscription period
+        if selected_date < subscription.start_date.date():
+            return Response({
+                "detail": f"Cannot schedule before subscription start date ({subscription.start_date.date().isoformat()})",
+                "earliest_date": subscription.start_date.date().isoformat()
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if selected_date > subscription.end_date.date():
+            return Response({
+                "detail": f"Cannot schedule after subscription end date ({subscription.end_date.date().isoformat()})",
+                "latest_date": subscription.end_date.date().isoformat()
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if date is not in the past
+        if selected_date < timezone.now().date():
             return Response(
-                {"detail": "Date parameter is required"},
+                {"detail": "Cannot schedule visits for past dates"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
+        # Check if it's a weekend
+        if selected_date.weekday() >= 5:  # 5 is Saturday, 6 is Sunday
             return Response(
-                {"detail": "Invalid date format. Use YYYY-MM-DD"},
+                {"detail": "Cannot schedule visits on weekends"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -741,7 +781,19 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
                     'display_time': slot_time.strftime('%I:%M %p')
                 })
 
+        # If no slots available
+        if not all_slots:
+            return Response({
+                "detail": "No available time slots for selected date",
+                "date": date_str,
+                "available_times": []
+            })
+
         return Response({
-            'date': date_str,
-            'available_times': all_slots
+            "date": date_str,
+            "available_times": all_slots,
+            "subscription": {
+                "id": subscription.id,
+                "remaining_visits": subscription.remaining_visits
+            }
         })
