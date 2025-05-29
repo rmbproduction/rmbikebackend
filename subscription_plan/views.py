@@ -551,19 +551,36 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
         Check if user can schedule a visit
         Allows scheduling for active subscriptions and future subscriptions
         """
-        # Get active or future subscription
+        now = timezone.now()
+        
+        # Get active subscription
         subscription = UserSubscription.objects.filter(
             user=request.user,
             status='ACTIVE',
-            end_date__gt=timezone.now(),  # Subscription hasn't ended
-        ).order_by('start_date').first()  # Get the earliest applicable subscription
+            start_date__lte=now,  # Subscription has started
+            end_date__gt=now,  # Subscription hasn't ended
+        ).order_by('-start_date').first()  # Get the most recent active subscription
         
         if not subscription:
-            return Response({
-                "can_schedule": False,
-                "reason": "No active or upcoming subscription found",
-                "subscription": None
-            })
+            # If no current subscription, check for future subscriptions
+            future_subscription = UserSubscription.objects.filter(
+                user=request.user,
+                status='ACTIVE',
+                start_date__gt=now
+            ).order_by('start_date').first()
+            
+            if future_subscription:
+                return Response({
+                    "can_schedule": False,
+                    "reason": f"Your subscription will be active from {future_subscription.start_date.strftime('%Y-%m-%d')}",
+                    "subscription": UserSubscriptionSerializer(future_subscription).data
+                })
+            else:
+                return Response({
+                    "can_schedule": False,
+                    "reason": "No active or upcoming subscription found",
+                    "subscription": None
+                })
 
         # Check remaining visits
         if subscription.remaining_visits <= 0:
@@ -575,7 +592,7 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
 
         # Calculate earliest possible scheduling date
         earliest_schedule_date = max(
-            timezone.now().date(),  # Can't schedule in the past
+            now.date(),  # Can't schedule in the past
             subscription.start_date.date()  # Can't schedule before subscription starts
         )
             
