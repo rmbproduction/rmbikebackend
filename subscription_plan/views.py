@@ -502,33 +502,42 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
     def check_availability(self, request):
         """
         Check if user can schedule a visit
+        Allows scheduling for active subscriptions and future subscriptions
         """
-        # Get active subscription
+        # Get active or future subscription
         subscription = UserSubscription.objects.filter(
             user=request.user,
             status='ACTIVE',
-            end_date__gt=timezone.now()
-        ).first()
+            end_date__gt=timezone.now(),  # Subscription hasn't ended
+        ).order_by('start_date').first()  # Get the earliest applicable subscription
         
         if not subscription:
             return Response({
                 "can_schedule": False,
-                "reason": "No active subscription found",
+                "reason": "No active or upcoming subscription found",
                 "subscription": None
             })
-            
+
         # Check remaining visits
         if subscription.remaining_visits <= 0:
             return Response({
                 "can_schedule": False,
-                "reason": "No remaining visits in current subscription",
+                "reason": "No remaining visits in subscription",
                 "subscription": UserSubscriptionSerializer(subscription).data
             })
+
+        # Calculate earliest possible scheduling date
+        earliest_schedule_date = max(
+            timezone.now().date(),  # Can't schedule in the past
+            subscription.start_date.date()  # Can't schedule before subscription starts
+        )
             
         return Response({
             "can_schedule": True,
             "remaining_visits": subscription.remaining_visits,
-            "subscription": UserSubscriptionSerializer(subscription).data
+            "subscription": UserSubscriptionSerializer(subscription).data,
+            "earliest_schedule_date": earliest_schedule_date.isoformat(),
+            "latest_schedule_date": subscription.end_date.date().isoformat()
         })
 
     @action(detail=False, methods=['get'])

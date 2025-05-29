@@ -270,10 +270,21 @@ class PreferredDateSerializer(serializers.Serializer):
         if preferred_datetime <= timezone.now():
             raise serializers.ValidationError("Selected date and time must be in the future")
 
-        # Check if subscription is active and has remaining visits
+        # Check if subscription is valid and has remaining visits
         subscription = data['subscription']
-        if not subscription.is_active():
-            raise serializers.ValidationError("Subscription is not active or has no remaining visits")
+        if subscription.remaining_visits <= 0:
+            raise serializers.ValidationError("Subscription has no remaining visits")
+
+        # Allow scheduling if the date falls within the subscription period
+        if preferred_datetime.date() < subscription.start_date.date():
+            raise serializers.ValidationError(
+                f"Cannot schedule before subscription start date ({subscription.start_date.date().isoformat()})"
+            )
+        
+        if preferred_datetime.date() > subscription.end_date.date():
+            raise serializers.ValidationError(
+                f"Cannot schedule after subscription end date ({subscription.end_date.date().isoformat()})"
+            )
 
         # Check if user already has a visit scheduled for this date
         existing_visit = VisitSchedule.objects.filter(
