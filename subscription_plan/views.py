@@ -245,22 +245,22 @@ class UserSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def active(self, request):
         """
-        Get the current active subscription for the authenticated user
+        Get all current active subscriptions for the authenticated user
         """
         user = request.user
-        subscription = UserSubscription.objects.filter(
+        subscriptions = UserSubscription.objects.filter(
             user=user,
             status=UserSubscription.ACTIVE,
             end_date__gt=timezone.now()
-        ).first()
+        ).order_by('-start_date')  # Order by most recent first
         
-        if not subscription:
+        if not subscriptions.exists():
             return Response(
-                {"detail": "You don't have an active subscription."},
+                {"detail": "You don't have any active subscriptions."},
                 status=status.HTTP_404_NOT_FOUND
             )
             
-        serializer = self.get_serializer(subscription)
+        serializer = self.get_serializer(subscriptions, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
@@ -385,10 +385,47 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
             'subscription': UserSubscriptionSerializer(subscription).data
         })
     
+    @action(detail=True, methods=['put'])
+    def update_schedule(self, request, pk=None):
+        """
+        Update a scheduled visit's date and time
+        """
+        visit = self.get_object()
+        serializer = PreferredDateSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if visit can be updated
+        if visit.status != VisitSchedule.SCHEDULED:
+            return Response(
+                {"detail": "Only scheduled visits can be updated."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if the user owns this visit's subscription
+        if visit.subscription.user != request.user:
+            return Response(
+                {"detail": "You do not have permission to update this visit."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get validated data
+        new_datetime = serializer.validated_data['scheduled_datetime']
+        notes = serializer.validated_data.get('notes', visit.service_notes)
+
+        # Update the visit
+        visit.scheduled_date = new_datetime
+        visit.service_notes = notes
+        visit.save()
+
+        response_serializer = self.get_serializer(visit)
+        return Response(response_serializer.data)
+
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         """
-        Cancel a scheduled visit
+        Cancel a scheduled visit and make the slot available again
         """
         visit = self.get_object()
         serializer = VisitCancellationSerializer(data=request.data)
@@ -409,10 +446,20 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Get the subscription and update remaining visits
+        subscription = visit.subscription
+        subscription.remaining_visits += 1  # Restore the visit count
+        subscription.save()
+        
         cancellation_notes = serializer.validated_data.get('cancellation_notes', None)
         visit.cancel(cancellation_notes)
+        
         response_serializer = self.get_serializer(visit)
-        return Response(response_serializer.data)
+        return Response({
+            "detail": "Visit cancelled successfully. You can schedule a new visit.",
+            "visit": response_serializer.data,
+            "subscription": UserSubscriptionSerializer(subscription).data
+        })
     
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
