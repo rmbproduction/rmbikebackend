@@ -173,7 +173,7 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
 
         # Update service request if exists
         if subscription_request.service_request:
-            subscription_request.service_request.status = ServiceRequest.STATUS_APPROVED
+            subscription_request.service_request.status = ServiceRequest.STATUS_CONFIRMED
             subscription_request.service_request.save()
         
         serializer = self.get_serializer(subscription_request)
