@@ -145,6 +145,8 @@ class SubscriptionRequest(models.Model):
         Approve the subscription request and create an active subscription
         """
         now = timezone.now()
+        print(f"Creating subscription at server time: {now} ({now.tzinfo})")
+        
         self.status = self.APPROVED
         self.approval_date = now
         if admin_notes:
@@ -156,15 +158,27 @@ class SubscriptionRequest(models.Model):
             self.service_request.status = ServiceRequest.STATUS_CONFIRMED
             self.service_request.save()
         
+        # Calculate duration with timezone awareness
+        duration_days = self.plan_variant.get_duration_in_days()
+        end_date = now + timedelta(days=duration_days)
+        
+        print(f"Subscription duration: {duration_days} days")
+        print(f"Calculated end date: {end_date} ({end_date.tzinfo})")
+        
         # Create the actual subscription
-        end_date = now + timedelta(days=self.plan_variant.get_duration_in_days())
-        UserSubscription.objects.create(
+        subscription = UserSubscription.objects.create(
             user=self.user,
             plan_variant=self.plan_variant,
             start_date=now,
             end_date=end_date,
-            remaining_visits=self.plan_variant.max_visits
+            remaining_visits=self.plan_variant.max_visits,
+            status=UserSubscription.ACTIVE
         )
+        
+        print(f"Created subscription: {subscription.id}")
+        print(f"- Start date: {subscription.start_date}")
+        print(f"- End date: {subscription.end_date}")
+        print(f"- Remaining visits: {subscription.remaining_visits}")
         
         return True
     

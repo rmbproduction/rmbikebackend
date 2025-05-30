@@ -248,17 +248,36 @@ class UserSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
         Get all current active subscriptions for the authenticated user
         """
         user = request.user
+        current_time = timezone.now()
+        
+        # Debug timezone information
+        print(f"Server time: {current_time}")
+        print(f"Server timezone: {current_time.tzinfo}")
+        
         subscriptions = UserSubscription.objects.filter(
             user=user,
             status=UserSubscription.ACTIVE,
-            end_date__gt=timezone.now()
+            start_date__lte=current_time,  # Start date is in the past or now
+            end_date__gt=current_time      # End date is in the future
         ).order_by('-start_date')  # Order by most recent first
         
+        # Debug subscription information
+        for sub in subscriptions:
+            print(f"Subscription {sub.id}:")
+            print(f"- Start date: {sub.start_date} ({sub.start_date.tzinfo})")
+            print(f"- End date: {sub.end_date} ({sub.end_date.tzinfo})")
+            print(f"- Current time: {current_time} ({current_time.tzinfo})")
+            print(f"- Is start_date <= current_time: {sub.start_date <= current_time}")
+            print(f"- Is end_date > current_time: {sub.end_date > current_time}")
+        
         if not subscriptions.exists():
-            return Response(
-                {"detail": "You don't have any active subscriptions."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "detail": "You don't have any active subscriptions.",
+                "debug_info": {
+                    "current_time": str(current_time),
+                    "timezone": str(current_time.tzinfo)
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
             
         serializer = self.get_serializer(subscriptions, many=True)
         return Response(serializer.data)
