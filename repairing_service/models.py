@@ -182,6 +182,15 @@ class ServiceRequest(models.Model):
         (STATUS_CANCELLED, 'Cancelled'),
     ]
 
+    # Add purchase type choices
+    PURCHASE_TYPE_DIRECT = 'direct'
+    PURCHASE_TYPE_CART = 'cart'
+    
+    PURCHASE_TYPE_CHOICES = [
+        (PURCHASE_TYPE_DIRECT, 'Buy Now'),
+        (PURCHASE_TYPE_CART, 'Cart Checkout'),
+    ]
+
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, null=True, blank=True)
     customer_name = models.CharField(max_length=255, null=True, blank=True, default="Customer")
     customer_email = models.EmailField(null=True, blank=True, default="customer@example.com")
@@ -195,6 +204,12 @@ class ServiceRequest(models.Model):
         max_length=20,
         choices=STATUS_CHOICES,
         default=STATUS_PENDING
+    )
+    purchase_type = models.CharField(
+        max_length=20,
+        choices=PURCHASE_TYPE_CHOICES,
+        default=PURCHASE_TYPE_DIRECT,
+        help_text="Whether this was a direct purchase or cart checkout"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
