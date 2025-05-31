@@ -85,7 +85,7 @@ class ServiceRequestAdmin(admin.ModelAdmin):
     list_display = ('reference', 'customer_name', 'customer_phone', 'status', 'purchase_type', 'get_services_display', 'total_amount', 'scheduled_date', 'schedule_time', 'created_at')
     list_filter = ('status', 'purchase_type', 'scheduled_date', 'city', 'state', 'vehicle_type')
     search_fields = ('reference', 'customer_name', 'customer_email', 'customer_phone', 'address')
-    readonly_fields = ('created_at', 'updated_at', 'reference', 'subscription_request_link', 'get_services_details')
+    readonly_fields = ('created_at', 'updated_at', 'reference', 'get_services_details')
     date_hierarchy = 'created_at'
     
     fieldsets = (
@@ -104,10 +104,6 @@ class ServiceRequestAdmin(admin.ModelAdmin):
         }),
         ('Booking Details', {
             'fields': ('reference', 'status', 'scheduled_date', 'schedule_time', 'distance_fee')
-        }),
-        ('Subscription Information', {
-            'fields': ('subscription_request_link',),
-            'classes': ('collapse',)
         }),
         ('Additional Information', {
             'fields': ('notes', 'created_at', 'updated_at'),
