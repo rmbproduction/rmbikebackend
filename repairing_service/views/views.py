@@ -277,172 +277,134 @@ class AdditionalServiceListView(generics.ListAPIView):
 
 class CreateBookingView(APIView):
     permission_classes = [IsAuthenticated]
-    renderer_classes = [JSONRenderer]
     
     def post(self, request):
-        user = request.user
-        cart_id = request.data.get('cart_id')
+        """
+        Create a service booking from cart items or direct purchase
         
-        print(f"[DEBUG] Processing booking request for cart_id: {cart_id}, user: {user.username}")
-        
-        if not cart_id:
-            return Response({"error": "Cart ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            cart = Cart.objects.get(id=cart_id)
-        except Cart.DoesNotExist:
-            return Response({"error": "Cart not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Get profile data
-        profile_data = request.data.get('profile', {})
-        vehicle_data = request.data.get('vehicle', {})
-        
-        # Parse scheduled date if provided
-        scheduled_date_str = request.data.get('scheduleDate')
-        scheduled_date = None
-        if scheduled_date_str:
-            try:
-                scheduled_date = datetime.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
-            except ValueError:
-                return Response(
-                    {"error": "Invalid scheduleDate format. Please use YYYY-MM-DD format."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        # Parse scheduled time if provided
-        scheduled_time_str = request.data.get('scheduleTime')
-        scheduled_time = None
-        if scheduled_time_str:
-            try:
-                scheduled_time = datetime.datetime.strptime(scheduled_time_str, '%H:%M').time()
-            except ValueError:
-                return Response(
-                    {"error": "Invalid scheduleTime format. Please use HH:MM format."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        # Get all cart items
-        cart_items = cart.cartitem_set.all()
-        if not cart_items.exists():
-            return Response({"error": "No services in cart"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Calculate total amount from service prices
-        total_amount = 0
-        for item in cart_items:
-            # Ensure we get the price correctly
-            if hasattr(item, 'price') and item.price:
-                item_price = float(item.price)
-            else:
-                item_price = float(item.service.base_price)
-            
-            # Multiply by quantity
-            quantity = item.quantity if item.quantity > 0 else 1
-            total_amount += item_price * quantity
-            
-            # Log for debugging
-            print(f"[DEBUG] Service: {item.service.name}, Price: {item_price}, Quantity: {quantity}")
-        
-        # Add distance fee if provided
-        distance_fee = float(request.data.get('distanceFee', 0))
-        total_amount += distance_fee
-        
-        print(f"[DEBUG] Total amount calculated: {total_amount} (includes distance fee: {distance_fee})")
-        
-        # Get coordinates
-        latitude = request.data.get('latitude')
-        longitude = request.data.get('longitude')
-        
-        # Create a reference code
-        reference = f"RMB-{uuid.uuid4().hex[:8].upper()}"
-        
-        # Create service request data - explicitly set status to 'pending'
-        service_request_data = {
-            'user': user,
-            'customer_name': profile_data.get('name', user.username),
-            'customer_email': profile_data.get('email', user.email),
-            'customer_phone': profile_data.get('phone', ''),
-            'address': profile_data.get('address', ''),
-            'city': profile_data.get('city', ''),
-            'state': profile_data.get('state', ''),
-            'postal_code': profile_data.get('postalCode', ''),
-            'reference': reference,
-            'status': 'pending',  # Explicitly set to pending
-            'total_amount': str(total_amount),
-            'scheduled_date': scheduled_date,
-            'schedule_time': scheduled_time,
-            'latitude': latitude,
-            'longitude': longitude,
-            'distance_fee': distance_fee,
-            'notes': f"Booking created from website"
+        Expected data:
+        {
+            "profile": {
+                "name": "Customer Name",
+                "email": "customer@example.com",
+                "phone": "9876543210",
+                "address": "123 Customer Street",
+                ...
+            },
+            "vehicle": {
+                "vehicle_type": 1,
+                "manufacturer": 2,
+                "model": 3
+            },
+            "cart_id": 123,  # For cart checkout
+            "service_id": 456,  # For direct purchase
+            "scheduleDate": "2023-05-15",
+            "scheduleTime": "14:30"
         }
-        
-        # Add vehicle data if available
-        if vehicle_data.get('vehicle_type'):
-            service_request_data['vehicle_type_id'] = vehicle_data.get('vehicle_type')
-        if vehicle_data.get('manufacturer'):
-            service_request_data['manufacturer_id'] = vehicle_data.get('manufacturer')
-        if vehicle_data.get('model'):
-            service_request_data['vehicle_model_id'] = vehicle_data.get('model')
-        
-        # IMPORTANT: Remove any fields that aren't in the ServiceRequest model
-        # This prevents the "unexpected keyword arguments" error
-        problematic_fields = ['customer', 'service_location', 'additional_notes', 'scheduled_time']
-        for field in problematic_fields:
-            if field in service_request_data:
-                print(f"[DEBUG] Removing problematic field: {field}")
-                service_request_data.pop(field)
-        
-        # Ensure we only use fields that are in the ServiceRequest model
-        # Get field names from the ServiceRequest model
-        allowed_fields = [f.name for f in ServiceRequest._meta.get_fields()]
-        # Remove many-to-many fields and other relation fields that can't be passed directly
-        excluded_fields = ['services']
-        allowed_fields = [f for f in allowed_fields if f not in excluded_fields]
-        
-        # Create a clean dictionary with only allowed fields
-        clean_data = {}
-        for field, value in service_request_data.items():
-            # Special handling for foreign keys
-            if field.endswith('_id'):
-                base_field = field[:-3]  # Remove _id suffix
-                if base_field in allowed_fields:
-                    clean_data[field] = value
-            elif field in allowed_fields:
-                clean_data[field] = value
-            else:
-                print(f"[DEBUG] Skipping field not in model: {field}")
-        
-        print(f"[DEBUG] Final service request data: {clean_data}")
-        
-        # Create the service request
+        """
         try:
-            service_request = ServiceRequest.objects.create(**clean_data)
+            # Print request body for debugging
+            print(f"[DEBUG] Booking request data: {request.data}")
             
-            # Verify the status was set correctly
-            if service_request.status != 'pending':
-                print(f"[WARNING] Status was not set to 'pending', forcing update")
-                service_request.status = 'pending'
-                service_request.save(update_fields=['status'])
+            # Determine if this is a cart checkout or direct purchase
+            cart_id = request.data.get('cart_id')
+            service_id = request.data.get('service_id')
             
-            # Verify total amount is correct
-            if float(service_request.total_amount) == 0 and total_amount > 0:
-                print(f"[WARNING] Total amount was set to 0, updating to {total_amount}")
-                service_request.total_amount = total_amount
-                service_request.save(update_fields=['total_amount'])
+            if not (cart_id or service_id):
+                return Response(
+                    {'error': 'Either cart_id or service_id is required'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Set purchase type based on request type
+            purchase_type = ServiceRequest.PURCHASE_TYPE_CART if cart_id else ServiceRequest.PURCHASE_TYPE_DIRECT
+            
+            # Handle cart checkout
+            if cart_id:
+                cart = get_object_or_404(Cart, id=cart_id)
+                cart_items = CartItem.objects.filter(cart=cart)
                 
-            # Associate services with the service request
-            for item in cart_items:
-                service_request.services.add(item.service)
+                if not cart_items.exists():
+                    return Response({'error': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Calculate total amount from cart items
+                service_total = sum(
+                    float(item.price) * item.quantity for item in cart_items if hasattr(item, 'price') and item.price
+                )
             
-            # Clear the cart
-            cart.delete()
+            # Handle direct purchase
+            else:
+                service = get_object_or_404(Service, id=service_id)
+                service_total = float(service.base_price)
             
-            # Use ServiceRequestSerializer to serialize the response
-            serializer = ServiceRequestSerializer(service_request)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            # Generate a booking reference
+            reference = f"RMB-{uuid.uuid4().hex[:8].upper()}"
+            
+            # Get location and distance fee data
+            latitude = request.data.get('latitude')
+            longitude = request.data.get('longitude')
+            distance_fee = request.data.get('distanceFee', 0)
+            
+            # Calculate total with distance fee
+            total_amount = service_total + float(distance_fee)
+            
+            # Get user profile and schedule data
+            profile_data = request.data.get('profile', {})
+            vehicle_data = request.data.get('vehicle', {})
+            scheduled_date = request.data.get('scheduleDate') or profile_data.get('scheduleDate')
+            scheduled_time = request.data.get('scheduleTime') or profile_data.get('scheduleTime')
+            
+            # Create service request data
+            service_request_data = {
+                'user': request.user,
+                'customer_name': profile_data.get('name', request.user.username),
+                'customer_email': profile_data.get('email', request.user.email),
+                'customer_phone': profile_data.get('phone', ''),
+                'address': profile_data.get('address', ''),
+                'city': profile_data.get('city', ''),
+                'state': profile_data.get('state', ''),
+                'postal_code': profile_data.get('postalCode', ''),
+                'reference': reference,
+                'status': ServiceRequest.STATUS_PENDING,
+                'purchase_type': purchase_type,  # Set the purchase type
+                'total_amount': str(total_amount),
+                'scheduled_date': scheduled_date,
+                'schedule_time': scheduled_time,
+                'latitude': latitude,
+                'longitude': longitude,
+                'distance_fee': distance_fee,
+                'notes': f"{'Cart checkout' if cart_id else 'Direct purchase'} from website"
+            }
+            
+            # Add vehicle data if available
+            if vehicle_data.get('vehicle_type'):
+                service_request_data['vehicle_type_id'] = vehicle_data.get('vehicle_type')
+            if vehicle_data.get('manufacturer'):
+                service_request_data['manufacturer_id'] = vehicle_data.get('manufacturer')
+            if vehicle_data.get('model'):
+                service_request_data['vehicle_model_id'] = vehicle_data.get('model')
+            
+            # Create the service request
+            service_request = ServiceRequest.objects.create(**service_request_data)
+            
+            # Add services to the request
+            if cart_id:
+                # Add all services from cart
+                for item in cart_items:
+                    service_request.services.add(item.service)
+                # Clear the cart after successful booking
+                cart.delete()
+            else:
+                # Add the single service for direct purchase
+                service_request.services.add(service)
+            
+            # Return the booking details
+            response_data = ServiceRequestSerializer(service_request).data
+            response_data['message'] = "Booking created successfully. Our service experts will contact you shortly."
+            return Response(response_data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            print(f"[ERROR] Service request creation failed: {str(e)}")
+            print(f"[ERROR] Booking creation failed: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ServiceRequestResponseDetailView(generics.ListCreateAPIView):

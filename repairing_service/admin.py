@@ -82,8 +82,8 @@ class AdditionalServiceAdmin(admin.ModelAdmin):
 
 @admin.register(ServiceRequest)
 class ServiceRequestAdmin(admin.ModelAdmin):
-    list_display = ('reference', 'customer_name', 'customer_phone', 'status', 'scheduled_date', 'schedule_time', 'total_amount', 'subscription_request_link', 'created_at')
-    list_filter = ('status', 'scheduled_date', 'city', 'state', 'vehicle_type')
+    list_display = ('reference', 'customer_name', 'customer_phone', 'status', 'purchase_type', 'scheduled_date', 'schedule_time', 'total_amount', 'subscription_request_link', 'created_at')
+    list_filter = ('status', 'purchase_type', 'scheduled_date', 'city', 'state', 'vehicle_type')
     search_fields = ('reference', 'customer_name', 'customer_email', 'customer_phone', 'address')
     readonly_fields = ('created_at', 'updated_at', 'reference', 'subscription_request_link')
     date_hierarchy = 'created_at'
@@ -99,7 +99,7 @@ class ServiceRequestAdmin(admin.ModelAdmin):
             'fields': ('vehicle_type', 'manufacturer', 'vehicle_model')
         }),
         ('Booking Details', {
-            'fields': ('reference', 'status', 'scheduled_date', 'schedule_time', 'total_amount', 'distance_fee')
+            'fields': ('reference', 'status', 'purchase_type', 'scheduled_date', 'schedule_time', 'total_amount', 'distance_fee')
         }),
         ('Subscription Information', {
             'fields': ('subscription_request_link',),
