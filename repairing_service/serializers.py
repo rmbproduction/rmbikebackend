@@ -57,24 +57,30 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
 
 class CartItemSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(source='service.name', read_only=True)
-    price = serializers.SerializerMethodField()
+    service_price = serializers.DecimalField(source='service.base_price', max_digits=10, decimal_places=2)
+    total_price = serializers.SerializerMethodField()
     
-    def get_price(self, obj):
-        return str(obj.service.base_price)
+    def get_total_price(self, obj):
+        return str(float(obj.service.base_price) * obj.quantity)
     
     class Meta:
         model = CartItem
-        fields = ['id', 'cart', 'service', 'service_name', 'quantity', 'price']
+        fields = ['id', 'cart', 'service', 'service_name', 'quantity', 'service_price', 'total_price']
 
 class CartSerializer(serializers.ModelSerializer):
-    items = CartItemSerializer(many=True, read_only=True)
+    items = CartItemSerializer(source='cartitem_set', many=True, read_only=True)
+    total_amount = serializers.SerializerMethodField()
     total_items = serializers.IntegerField(read_only=True)
     total_quantity = serializers.IntegerField(read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     
+    def get_total_amount(self, obj):
+        total = sum(float(item.service.base_price) * item.quantity for item in obj.cartitem_set.all())
+        return str(total)
+    
     class Meta:
         model = Cart
-        fields = ['id', 'user', 'items', 'created_at', 'modified_at', 'status', 'total_items', 'total_quantity']
+        fields = ['id', 'user', 'items', 'created_at', 'modified_at', 'status', 'total_items', 'total_quantity', 'total_amount']
         read_only_fields = ['created_at', 'modified_at', 'status']
 
 class FieldStaffSerializer(serializers.ModelSerializer):
