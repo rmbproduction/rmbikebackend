@@ -793,17 +793,32 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
         """
         Get available time slots for a specific date
         """
+        now = timezone.now()
+        print(f"Server time: {now} ({now.tzinfo})")  # Debug log
+        
         # First check if user has an active or future subscription
         subscription = UserSubscription.objects.filter(
             user=request.user,
             status='ACTIVE',
-            end_date__gt=timezone.now()
+            end_date__gt=now
         ).order_by('start_date').first()
+
+        if subscription:
+            print(f"Found subscription: {subscription.id}")
+            print(f"Start date: {subscription.start_date} ({subscription.start_date.tzinfo})")
+            print(f"End date: {subscription.end_date} ({subscription.end_date.tzinfo})")
+            print(f"Is active: {subscription.is_currently_active}")
+        else:
+            print("No subscription found")
 
         if not subscription:
             return Response({
                 "detail": "No active or upcoming subscription found. Please subscribe to schedule visits.",
-                "subscription_required": True
+                "subscription_required": True,
+                "debug_info": {
+                    "current_time": str(now),
+                    "timezone": str(now.tzinfo)
+                }
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Get date parameter
