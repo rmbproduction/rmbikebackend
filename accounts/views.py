@@ -757,6 +757,11 @@ class LogoutView(APIView):
                 )
                 
             refresh_token = serializer.validated_data['refresh']
+            
+            # Clean the token
+            refresh_token = refresh_token.strip()
+            if refresh_token.startswith('Bearer '):
+                refresh_token = refresh_token[7:].strip()
 
             # Blacklist the refresh token
             try:
@@ -773,7 +778,8 @@ class LogoutView(APIView):
                     {"message": "Successfully logged out"},
                     status=status.HTTP_200_OK
                 )
-            except TokenError as e:
+            except (TokenError, ValueError) as e:
+                logger.warning(f"Invalid token during logout: {str(e)}")
                 return Response(
                     {"error": "Invalid token. Please provide a valid refresh token."},
                     status=status.HTTP_400_BAD_REQUEST
