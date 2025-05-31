@@ -82,15 +82,19 @@ class AdditionalServiceAdmin(admin.ModelAdmin):
 
 @admin.register(ServiceRequest)
 class ServiceRequestAdmin(admin.ModelAdmin):
-    list_display = ('reference', 'customer_name', 'customer_phone', 'status', 'purchase_type', 'scheduled_date', 'schedule_time', 'total_amount', 'subscription_request_link', 'created_at')
+    list_display = ('reference', 'customer_name', 'customer_phone', 'status', 'purchase_type', 'get_services_display', 'total_amount', 'scheduled_date', 'schedule_time', 'created_at')
     list_filter = ('status', 'purchase_type', 'scheduled_date', 'city', 'state', 'vehicle_type')
     search_fields = ('reference', 'customer_name', 'customer_email', 'customer_phone', 'address')
-    readonly_fields = ('created_at', 'updated_at', 'reference', 'subscription_request_link')
+    readonly_fields = ('created_at', 'updated_at', 'reference', 'subscription_request_link', 'get_services_details')
     date_hierarchy = 'created_at'
     
     fieldsets = (
         ('Customer Information', {
             'fields': ('user', 'customer_name', 'customer_email', 'customer_phone')
+        }),
+        ('Service Details', {
+            'fields': ('get_services_details', 'purchase_type', 'total_amount'),
+            'classes': ('wide',)
         }),
         ('Address Information', {
             'fields': ('address', 'city', 'state', 'postal_code', 'latitude', 'longitude')
@@ -99,7 +103,7 @@ class ServiceRequestAdmin(admin.ModelAdmin):
             'fields': ('vehicle_type', 'manufacturer', 'vehicle_model')
         }),
         ('Booking Details', {
-            'fields': ('reference', 'status', 'purchase_type', 'scheduled_date', 'schedule_time', 'total_amount', 'distance_fee')
+            'fields': ('reference', 'status', 'scheduled_date', 'schedule_time', 'distance_fee')
         }),
         ('Subscription Information', {
             'fields': ('subscription_request_link',),
@@ -112,19 +116,41 @@ class ServiceRequestAdmin(admin.ModelAdmin):
     )
     
     def get_queryset(self, request):
-        # Order by created_at descending to show newest requests first
         return super().get_queryset(request).order_by('-created_at')
     
-    def service_count(self, obj):
-        return obj.services.count()
-    service_count.short_description = 'Number of Services'
-    
-    def subscription_request_link(self, obj):
-        if hasattr(obj, 'subscription_request') and obj.subscription_request:
-            url = reverse('admin:subscription_plan_subscriptionrequest_change', args=[obj.subscription_request.id])
-            return format_html('<a href="{}">View Subscription Request #{}</a>', url, obj.subscription_request.id)
-        return "No linked subscription request"
-    subscription_request_link.short_description = 'Subscription Request'
+    def get_services_display(self, obj):
+        services = obj.services.all()
+        if services:
+            return ", ".join([f"{s.name}" for s in services])
+        return "No services"
+    get_services_display.short_description = 'Services'
+
+    def get_services_details(self, obj):
+        services = obj.services.all()
+        if not services:
+            return "No services selected"
+            
+        html = '<div style="margin-bottom: 10px;"><strong>Selected Services:</strong></div>'
+        html += '<table style="width: 100%; border-collapse: collapse;">'
+        html += '<tr style="background-color: #f5f5f5;"><th style="padding: 8px; border: 1px solid #ddd;">Service Name</th><th style="padding: 8px; border: 1px solid #ddd;">Category</th><th style="padding: 8px; border: 1px solid #ddd;">Price</th><th style="padding: 8px; border: 1px solid #ddd;">Duration</th></tr>'
+        
+        for service in services:
+            html += f'''
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{service.name}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{service.category.name}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">₹{service.base_price}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{service.duration}</td>
+                </tr>
+            '''
+        
+        html += '</table>'
+        
+        if obj.notes:
+            html += f'<div style="margin-top: 15px;"><strong>Customer Notes:</strong><br/>{obj.notes}</div>'
+            
+        return format_html(html)
+    get_services_details.short_description = 'Service Details'
     
     filter_horizontal = ('services',)
 
