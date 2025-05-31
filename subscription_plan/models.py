@@ -225,12 +225,25 @@ class UserSubscription(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.plan_variant.plan.name} ({self.get_status_display()})"
     
-    def is_active(self):
-        return (
+    @property
+    def is_currently_active(self):
+        """
+        Check if subscription is currently active
+        """
+        now = timezone.now()
+        print(f"Checking subscription {self.id} active status:")
+        print(f"- Current time: {now} ({now.tzinfo})")
+        print(f"- Start date: {self.start_date} ({self.start_date.tzinfo})")
+        print(f"- End date: {self.end_date} ({self.end_date.tzinfo})")
+        
+        is_active = (
             self.status == self.ACTIVE and
-            self.end_date > timezone.now() and
+            self.start_date <= now and
+            self.end_date > now and
             self.remaining_visits > 0
         )
+        print(f"- Is active: {is_active}")
+        return is_active
     
     def cancel(self):
         self.status = self.CANCELLED
@@ -241,7 +254,7 @@ class UserSubscription(models.Model):
         """
         Decrement remaining visits and update last visit date
         """
-        if self.is_active() and self.remaining_visits > 0:
+        if self.is_currently_active and self.remaining_visits > 0:
             self.remaining_visits -= 1
             self.last_visit_date = timezone.now()
             self.save()
@@ -249,7 +262,7 @@ class UserSubscription(models.Model):
         return False
     
     def days_remaining(self):
-        if not self.is_active():
+        if not self.is_currently_active:
             return 0
         delta = self.end_date - timezone.now()
         return max(0, delta.days)
