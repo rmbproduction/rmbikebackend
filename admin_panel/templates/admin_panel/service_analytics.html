@@ -1,8 +1,9 @@
-{% extends "admin/base_site.html" %}
+{% extends "base.html" %}
 {% load static %}
 
+{% block title %}Service Analytics{% endblock %}
+
 {% block extrastyle %}
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
@@ -25,6 +26,7 @@
     </div>
 </div>
 
+{% block extra_js %}
 <script>
     // Parse Django template variables into JavaScript objects
     const categoryData = JSON.parse('{{ category_distribution|safe|escapejs }}');
@@ -82,4 +84,5 @@
         }
     });
 </script>
+{% endblock %}
 {% endblock %} 
