@@ -16,7 +16,7 @@ from .serializers import (
     VehiclePurchaseSerializer, VehicleBookingSerializer
 )
 from rest_framework.exceptions import PermissionDenied
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from .models import Notification
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -29,6 +29,8 @@ import cloudinary.utils
 import logging
 
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 class VehicleViewSet(viewsets.ModelViewSet):
     """
