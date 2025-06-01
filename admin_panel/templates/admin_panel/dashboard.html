@@ -68,15 +68,19 @@
 </div>
 
 <script>
+    // Parse Django template variables into JavaScript objects
+    const monthlyUsers = JSON.parse('{{ monthly_users|safe|escapejs }}');
+    const monthlyServices = JSON.parse('{{ monthly_services|safe|escapejs }}');
+
     // User Growth Chart
     const userCtx = document.getElementById('userGrowthChart').getContext('2d');
     new Chart(userCtx, {
         type: 'line',
         data: {
-            labels: {{ monthly_users|safe }}.map(item => item.day),
+            labels: monthlyUsers.map(item => item.day),
             datasets: [{
                 label: 'New Users',
-                data: {{ monthly_users|safe }}.map(item => item.count),
+                data: monthlyUsers.map(item => item.count),
                 borderColor: 'rgb(59, 130, 246)',
                 tension: 0.1
             }]
@@ -99,10 +103,10 @@
     new Chart(serviceCtx, {
         type: 'line',
         data: {
-            labels: {{ monthly_services|safe }}.map(item => item.day),
+            labels: monthlyServices.map(item => item.day),
             datasets: [{
                 label: 'Service Requests',
-                data: {{ monthly_services|safe }}.map(item => item.count),
+                data: monthlyServices.map(item => item.count),
                 borderColor: 'rgb(239, 68, 68)',
                 tension: 0.1
             }]
