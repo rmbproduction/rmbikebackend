@@ -512,7 +512,17 @@ class SellRequestViewSet(viewsets.ModelViewSet):
             # Generate all possible time slots (9 AM to 6 PM)
             all_slots = []
             for hour in range(9, 19):  # 9 AM to 6 PM inclusive
+                # Add slot for the start of the hour (XX:00)
                 slot_time = timezone.datetime.strptime(f"{hour:02d}:00", "%H:%M").time()
+                if slot_time not in scheduled_times:
+                    all_slots.append({
+                        'time': slot_time.strftime('%H:%M'),
+                        'display_time': slot_time.strftime('%I:%M %p'),
+                        'value': f"{date_str}T{slot_time.strftime('%H:%M')}:00"
+                    })
+                
+                # Add slot for the half hour (XX:30)
+                slot_time = timezone.datetime.strptime(f"{hour:02d}:30", "%H:%M").time()
                 if slot_time not in scheduled_times:
                     all_slots.append({
                         'time': slot_time.strftime('%H:%M'),
