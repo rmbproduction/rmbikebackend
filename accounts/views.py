@@ -494,6 +494,39 @@ class SignupView(generics.GenericAPIView):
     renderer_classes = [JSONRenderer, BrowsableAPIRenderer]
     parser_classes = (JSONParser,)
 
+    def _get_frontend_url(self, request, environment):
+        """Helper method to determine frontend URL"""
+        if environment == 'production':
+            return 'https://repairmybike.in'
+        return settings.FRONTEND_URL
+
+    def _send_verification_email(self, user, verification_url):
+        """Helper method to send verification email"""
+        try:
+            send_mail(
+                subject="Verify Your Email - Repair My Bike",
+                message=f"""Thank you for signing up with Repair My Bike!
+
+Please click the link below to verify your email address:
+
+{verification_url}
+
+This link will expire in 24 hours.
+
+If you did not create an account, please ignore this email.
+
+Best regards,
+The Repair My Bike Team""",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,  # Set to True to prevent email errors from breaking signup
+            )
+            logger.info(f"Verification email sent successfully to {user.email}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
+            return False
+
     @method_decorator(csrf_exempt)
     @method_decorator(ratelimit(key='ip', rate='20/h', method=['POST']))
     def post(self, request):
@@ -529,7 +562,7 @@ class SignupView(generics.GenericAPIView):
                 cache.set(f'email_verification_{token}', user.pk, timeout=86400)
                 
                 # Also store in database
-                EmailVerificationToken.objects.create(
+                verification_token = EmailVerificationToken.objects.create(
                     user=user,
                     token=token
                 )
@@ -540,23 +573,20 @@ class SignupView(generics.GenericAPIView):
                 verification_url = f"{frontend_url}/verify-email/{token}"
                 
                 # Send verification email
-                try:
-                    self._send_verification_email(user, verification_url)
-                except Exception as e:
-                    logger.error(f"Error sending verification email: {str(e)}")
-                    # Don't delete the user, just inform them about the email issue
-                    return Response({
-                        "message": "Account created but there was an issue sending the verification email. Please try again later or contact support.",
-                        "email": user.email,
-                        "verification_required": True
-                    }, status=status.HTTP_201_CREATED)
+                email_sent = self._send_verification_email(user, verification_url)
                 
-                return Response({
+                response_data = {
                     "message": "Registration successful! Please check your email to verify your account.",
                     "email": user.email,
                     "verification_required": True,
-                    "next_step": "Please verify your email before logging in. Check your inbox for a verification link."
-                }, status=status.HTTP_201_CREATED)
+                    "verification_token": token,  # Include the token in the response
+                    "next_step": "Please verify your email before logging in."
+                }
+                
+                if not email_sent:
+                    response_data["warning"] = "Account created but there was an issue sending the verification email. You can still verify your account using the token."
+                
+                return Response(response_data, status=status.HTTP_201_CREATED)
                 
             except Exception as e:
                 logger.error(f"Error creating user account: {str(e)}")
@@ -569,49 +599,6 @@ class SignupView(generics.GenericAPIView):
             return Response({
                 "error": "An unexpected error occurred. Please try again later."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-    def _get_frontend_url(self, request, environment):
-        """Helper method to determine frontend URL"""
-        if environment == 'production':
-            return 'https://repairmybike.in'
-            
-        origin = request.headers.get('Origin')
-        if origin and 'localhost' in origin:
-            return origin
-            
-        referer = request.headers.get('Referer')
-        if referer:
-            from urllib.parse import urlparse
-            parsed_uri = urlparse(referer)
-            return f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-            
-        return getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
-        
-    def _send_verification_email(self, user, verification_url):
-        """Helper method to send verification email"""
-        try:
-            send_mail(
-                subject="Verify Your Email - Repair My Bike",
-                message=f"""Thank you for signing up with Repair My Bike!
-
-Please click the link below to verify your email address:
-
-{verification_url}
-
-This link will expire in 24 hours.
-
-If you did not create an account, please ignore this email.
-
-Best regards,
-The Repair My Bike Team""",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
-            )
-            logger.info(f"Verification email sent successfully to {user.email}")
-        except Exception as e:
-            logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
-            raise
 
 class VerifyEmailView(APIView):
     permission_classes = (permissions.AllowAny,)
@@ -793,34 +780,33 @@ from rest_framework.decorators import api_view, permission_classes
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def profile_view(request):
+    """Handle user profile operations"""
     try:
+        # Get or create profile
+        profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={
+                'name': request.user.get_full_name() or request.user.username,
+                'address': ''  # Required field with default empty string
+            }
+        )
+        
         if request.method == 'GET':
-            profile = UserProfile.objects.get(user=request.user)
             serializer = UserProfileSerializer(profile)
             return Response(serializer.data)
             
         elif request.method == 'POST':
-            # Check if profile exists
-            profile = UserProfile.objects.filter(user=request.user).first()
-            
-            if profile:
-                # Update existing profile
-                serializer = UserProfileSerializer(profile, data=request.data, partial=True)
-            else:
-                # Create new profile
-                data = request.data.copy()
-                data['user'] = request.user.id
-                serializer = UserProfileSerializer(data=data)
-                
+            serializer = UserProfileSerializer(profile, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(serializer.data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
     except Exception as e:
+        logger.exception(f"Error in profile view: {str(e)}")
         return Response(
-            {'detail': str(e)},
-            status=status.HTTP_400_BAD_REQUEST
+            {"detail": "Error processing profile request. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 class UserProfileView(APIView):

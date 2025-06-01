@@ -93,54 +93,26 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
-    vehicle_name = serializers.PrimaryKeyRelatedField(
-        queryset=VehicleModel.objects.all(),
-        required=False,
-        allow_null=True
-    )
-    vehicle_type = serializers.PrimaryKeyRelatedField(
-        queryset=VehicleType.objects.all(),
-        required=False,
-        allow_null=True
-    )
-    manufacturer = serializers.PrimaryKeyRelatedField(
-        queryset=Manufacturer.objects.all(),
-        required=False,
-        allow_null=True
-    )
 
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'user', 'email', 'username', 'name', 'phone_number',
+            'id', 'user', 'email', 'username', 'name', 'phone',
             'address', 'city', 'state', 'postal_code', 'country',
-            'profile_picture', 'bio', 'created_at', 'updated_at',
-            'vehicle_name', 'vehicle_type', 'manufacturer'
+            'profile_photo'
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user']
 
     def create(self, validated_data):
-        # Remove vehicle-related fields as they don't exist in the UserProfile model
-        vehicle_name = validated_data.pop('vehicle_name', None)
-        vehicle_type = validated_data.pop('vehicle_type', None)
-        manufacturer = validated_data.pop('manufacturer', None)
-        
         # Create the UserProfile instance
         profile = UserProfile.objects.create(**validated_data)
-        
         return profile
         
     def update(self, instance, validated_data):
-        # Remove vehicle-related fields as they don't exist in the UserProfile model
-        validated_data.pop('vehicle_name', None)
-        validated_data.pop('vehicle_type', None)
-        validated_data.pop('manufacturer', None)
-        
-        # Update the instance with the remaining fields
+        # Update the instance with the validated fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        
         return instance
 
     def validate(self, data):
@@ -151,34 +123,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({
                         field: f"{field.replace('_', ' ').title()} is required"
                     })
-
-        # Vehicle validation only if vehicle-related fields are provided
-        vehicle_fields = {'vehicle_name', 'vehicle_type', 'manufacturer'}
-        provided_vehicle_fields = set(data.keys()) & vehicle_fields
-
-        if provided_vehicle_fields:
-            if len(provided_vehicle_fields) != len(vehicle_fields):
-                missing = vehicle_fields - provided_vehicle_fields
-                raise serializers.ValidationError({
-                    "vehicle": f"If providing vehicle information, all fields are required: {', '.join(missing)}"
-                })
-
-            vehicle_model = data.get('vehicle_name')
-            manufacturer = data.get('manufacturer')
-            vehicle_type = data.get('vehicle_type')
-
-            if vehicle_model and manufacturer:
-                if vehicle_model.manufacturer.id != manufacturer.id:
-                    raise serializers.ValidationError({
-                        'vehicle_name': f"Selected vehicle model doesn't belong to {manufacturer.name}"
-                    })
-
-            if vehicle_model and vehicle_type:
-                if vehicle_model.vehicle_type.id != vehicle_type.id:
-                    raise serializers.ValidationError({
-                        'vehicle_type': f"Selected vehicle type doesn't match the vehicle model's type"
-                    })
-
         return data
 
 class UserProfileWriteSerializer(serializers.ModelSerializer):

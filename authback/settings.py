@@ -87,14 +87,14 @@ HOST_PROTOCOL = config('HOST_PROTOCOL', default='http')
 
 # Frontend URL configuration
 FRONTEND_URL = config('FRONTEND_URL', default=f"{HOST_PROTOCOL}://{HOST_DOMAIN.replace(':8000', ':5173')}")
+
 # In production, default to repairmybike.in
 if os.environ.get('ENVIRONMENT', 'development') == 'production':
     # Force production URL in production environment
-    # This will override any FRONTEND_URL that might contain localhost
-    FRONTEND_URL = config('FRONTEND_URL', default='https://repairmybike.in')
-    # Add a safety check to ensure we never use localhost in production
-    if 'localhost' in FRONTEND_URL or '127.0.0.1' in FRONTEND_URL:
-        FRONTEND_URL = 'https://repairmybike.in'
+    FRONTEND_URL = 'https://repairmybike.in'
+else:
+    # In development, allow localhost URLs
+    FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 
 # Print the FRONTEND_URL for debugging
 print(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'development')}")
