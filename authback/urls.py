@@ -44,6 +44,7 @@ def cloudinary_test(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('admin/dashboard/', include('admin_panel.urls')),
     path('api/accounts/', include('accounts.urls')),
     path('api/vehicle/', include('vehicle.urls')),
     path('api/marketplace/', include('marketplace.urls')),
