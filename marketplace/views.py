@@ -333,9 +333,10 @@ class SellRequestViewSet(viewsets.ModelViewSet):
         """
         sell_request = self.get_object()
         
-        if sell_request.status != SellRequest.Status.DRAFT:
+        # Check if the request is in a valid state for inspection
+        if sell_request.status not in [SellRequest.Status.SUBMITTED, SellRequest.Status.CONFIRMED]:
             return Response(
-                {'error': 'Only draft sell requests can be submitted for inspection'},
+                {'error': 'Only submitted or confirmed sell requests can be submitted for inspection'},
                 status=400
             )
         
@@ -345,13 +346,12 @@ class SellRequestViewSet(viewsets.ModelViewSet):
                 status=400
             )
         
-        sell_request.status = SellRequest.Status.PENDING_INSPECTION
+        sell_request.status = SellRequest.Status.INSPECTION_SCHEDULED
         sell_request.save()
         
         # Create an inspection report
         InspectionReport.objects.create(
-            sell_request=sell_request,
-            status=InspectionReport.Status.SCHEDULED
+            sell_request=sell_request
         )
         
         return Response({'status': 'Submitted for inspection'})
@@ -394,17 +394,31 @@ class SellRequestViewSet(viewsets.ModelViewSet):
         })
         
         # Add document submission events
-        if sell_request.registration_document:
+        if sell_request.registration_certificate:
             timeline.append({
-                'date': sell_request.registration_document_uploaded_at,
-                'event': 'Registration document uploaded',
+                'date': sell_request.created_at,
+                'event': 'Registration certificate uploaded',
                 'status': 'completed'
             })
         
         if sell_request.insurance_document:
             timeline.append({
-                'date': sell_request.insurance_document_uploaded_at,
+                'date': sell_request.created_at,
                 'event': 'Insurance document uploaded',
+                'status': 'completed'
+            })
+        
+        if sell_request.puc_certificate:
+            timeline.append({
+                'date': sell_request.created_at,
+                'event': 'PUC certificate uploaded',
+                'status': 'completed'
+            })
+            
+        if sell_request.ownership_transfer:
+            timeline.append({
+                'date': sell_request.created_at,
+                'event': 'Ownership transfer document uploaded',
                 'status': 'completed'
             })
         
@@ -425,7 +439,7 @@ class SellRequestViewSet(viewsets.ModelViewSet):
                 })
         
         # Add completion/cancellation event
-        if sell_request.status in [SellRequest.Status.COMPLETED, SellRequest.Status.CANCELLED]:
+        if sell_request.status in [SellRequest.Status.COMPLETED, SellRequest.Status.REJECTED]:
             timeline.append({
                 'date': sell_request.updated_at,
                 'event': f'Sell request {sell_request.status.lower()}',
