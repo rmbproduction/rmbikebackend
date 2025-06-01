@@ -17,6 +17,8 @@ class UserSerializer(serializers.ModelSerializer):
     is_staff_member = serializers.BooleanField(read_only=True)
     is_field_staff = serializers.BooleanField(read_only=True)
     is_customer = serializers.BooleanField(read_only=True)
+    verification_status = serializers.SerializerMethodField()
+    verification_token = EmailVerificationTokenSerializer(read_only=True)
 
     class Meta:
         model = User
@@ -30,7 +32,9 @@ class UserSerializer(serializers.ModelSerializer):
             'is_admin',
             'is_staff_member',
             'is_field_staff',
-            'is_customer'
+            'is_customer',
+            'verification_status',
+            'verification_token'
         )
         extra_kwargs = {
             'password': {'write_only': True},
@@ -41,6 +45,19 @@ class UserSerializer(serializers.ModelSerializer):
             'is_active': {'read_only': True}
         }
 
+    def get_verification_status(self, obj):
+        if obj.email_verified:
+            return "verified"
+        
+        token = EmailVerificationToken.objects.filter(user=obj).first()
+        if not token:
+            return "expired"
+            
+        if (timezone.now() - obj.date_joined) > timezone.timedelta(hours=24):
+            return "expired"
+            
+        return "pending"
+
     def create(self, validated_data):
         user = User.objects.create_user(
             username=validated_data['username'],
@@ -50,10 +67,23 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 class EmailVerificationTokenSerializer(serializers.ModelSerializer):
+    is_expired = serializers.SerializerMethodField()
+    hours_remaining = serializers.SerializerMethodField()
+
     class Meta:
         model = EmailVerificationToken
-        fields = ['token', 'created_at']
-        read_only_fields = ['token', 'created_at']
+        fields = ['token', 'created_at', 'is_expired', 'hours_remaining']
+        read_only_fields = ['token', 'created_at', 'is_expired', 'hours_remaining']
+
+    def get_is_expired(self, obj):
+        now = timezone.now()
+        return (now - obj.created_at) > timezone.timedelta(hours=24)
+
+    def get_hours_remaining(self, obj):
+        now = timezone.now()
+        time_elapsed = now - obj.created_at
+        hours_remaining = 24 - (time_elapsed.total_seconds() / 3600)
+        return max(0, round(hours_remaining, 1))
 
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)

@@ -294,19 +294,22 @@ class LoginView(APIView):
             try:
                 user = User.objects.get(email=email)
                 if not user.is_active and not user.email_verified:
-                    # Check if verification token exists
+                    # Check if verification token exists and is valid
                     token = EmailVerificationToken.objects.filter(user=user).first()
-                    if token:
+                    if token and (timezone.now() - token.created_at) <= timezone.timedelta(hours=24):
                         return Response({
                             "error": "Please verify your email before logging in",
                             "email_verification_required": True,
+                            "verification_token_exists": True,
                             "email": email,
-                            "message": "Your account exists but is not verified. Please check your email for the verification link or request a new one."
+                            "message": "Your account exists but is not verified. Please check your email for the verification link."
                         }, status=status.HTTP_401_UNAUTHORIZED)
                     else:
-                        # If no token exists, suggest re-registration
+                        # If no valid token exists, suggest re-registration
                         return Response({
-                            "error": "Unverified account with expired verification link",
+                            "error": "Unverified account with expired verification",
+                            "email_verification_required": True,
+                            "verification_token_exists": False,
                             "message": "Your previous registration was not completed. Please register again.",
                             "should_register_again": True
                         }, status=status.HTTP_401_UNAUTHORIZED)
@@ -531,34 +534,47 @@ class SignupView(generics.GenericAPIView):
                     EmailVerificationToken.objects.filter(user=existing_user).delete()
                     existing_user.delete()
                 else:
-                    # Account is too new, must wait for the 24-hour period or verify
+                    # Account is too new, must wait for the 24-hour period
                     hours_remaining = 24 - (account_age.total_seconds() / 3600)
-                    # Check if verification token exists
+                    
+                    # Check if we should send a new verification email
                     token = EmailVerificationToken.objects.filter(user=existing_user).first()
-                    if token:
-                        return Response({
-                            "email": ["A user with that email already exists."],
-                            "verification_status": "pending",
-                            "message": "Please check your email for the verification link or wait {:.1f} hours to register again.".format(hours_remaining),
-                            "hours_remaining": round(hours_remaining, 1)
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                    else:
-                        # No valid verification token exists
-                        return Response({
-                            "email": ["A user with that email already exists."],
-                            "verification_status": "expired",
-                            "message": "Your previous registration has expired. Please wait {:.1f} hours to register again.".format(hours_remaining),
-                            "hours_remaining": round(hours_remaining, 1)
-                        }, status=status.HTTP_400_BAD_REQUEST)
+                    token_age = timezone.now() - token.created_at if token else timezone.timedelta(hours=25)
+                    
+                    if token_age > timezone.timedelta(hours=1):  # Only send new email if last one is older than 1 hour
+                        # Delete old token if exists
+                        if token:
+                            token.delete()
+                            cache.delete(f'email_verification_{token.token}')
+                        
+                        # Generate new verification token
+                        new_token = get_random_string(64)
+                        EmailVerificationToken.objects.create(
+                            user=existing_user,
+                            token=new_token
+                        )
+                        cache.set(f'email_verification_{new_token}', existing_user.pk, timeout=86400)
+                        
+                        # Get frontend URL and send new verification email
+                        environment = os.environ.get('ENVIRONMENT', 'development')
+                        frontend_url = self._get_frontend_url(request, environment)
+                        verification_url = f"{frontend_url}/verify-email/{new_token}"
+                        self._send_verification_email(existing_user, verification_url)
+                    
+                    # Return same error message regardless of whether we sent new email
+                    return Response({
+                        "email": ["A user with that email already exists."],
+                        "message": "An account with this email already exists. Please check your email for verification instructions.",
+                        "hours_remaining": round(hours_remaining, 1)
+                    }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 # User exists and is verified
                 return Response({
                     "email": ["A user with that email already exists."],
-                    "verification_status": "verified",
                     "message": "An account with this email already exists. Please login with your existing account."
                 }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Validate password strength
+        # Rest of the signup logic for new users...
         try:
             validate_password_strength(password)
         except ValidationError as e:
