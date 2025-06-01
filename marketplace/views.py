@@ -473,6 +473,64 @@ class SellRequestViewSet(viewsets.ModelViewSet):
             'updated_at': sell_request.updated_at
         })
 
+    @action(detail=False, methods=['get'])
+    def available_slots(self, request):
+        """
+        Get available time slots for vehicle pickup
+        """
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response(
+                {"detail": "Date parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            # Convert string to date
+            selected_date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            # Check if date is not in the past
+            if selected_date < timezone.now().date():
+                return Response(
+                    {"detail": "Cannot schedule pickup for past dates"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if it's a weekend
+            if selected_date.weekday() >= 5:  # 5 is Saturday, 6 is Sunday
+                return Response(
+                    {"detail": "Cannot schedule pickup on weekends"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get all scheduled pickups for the date
+            scheduled_times = SellRequest.objects.filter(
+                pickup_slot__date=selected_date,
+                status__in=['submitted', 'confirmed', 'inspection_scheduled']
+            ).values_list('pickup_slot__time', flat=True)
+            
+            # Generate all possible time slots (9 AM to 6 PM)
+            all_slots = []
+            for hour in range(9, 19):  # 9 AM to 6 PM inclusive
+                slot_time = timezone.datetime.strptime(f"{hour:02d}:00", "%H:%M").time()
+                if slot_time not in scheduled_times:
+                    all_slots.append({
+                        'time': slot_time.strftime('%H:%M'),
+                        'display_time': slot_time.strftime('%I:%M %p'),
+                        'value': f"{date_str}T{slot_time.strftime('%H:%M')}:00"
+                    })
+            
+            return Response({
+                "date": date_str,
+                "available_slots": all_slots
+            })
+            
+        except ValueError:
+            return Response(
+                {"detail": "Invalid date format. Use YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
 class InspectionReportViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing vehicle inspection reports.
