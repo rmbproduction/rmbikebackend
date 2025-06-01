@@ -664,6 +664,7 @@ def create_purchase_offer(sender, instance, created, **kwargs):
 def create_sell_request_notification(sender, instance, created, **kwargs):
     """Create notifications when sell request is created or updated"""
     from django.db.models.signals import post_save
+    from django.contrib.auth import get_user_model
     
     User = get_user_model()
     
