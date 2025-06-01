@@ -641,19 +641,19 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
             status=VisitSchedule.SCHEDULED
         ).values_list('scheduled_time', flat=True)
         
-        # Define available time slots (example: 9 AM to 5 PM, hourly slots)
-        all_slots = [
-            f"{hour:02d}:00" for hour in range(9, 17)  # 9 AM to 4 PM
-        ]
-        
-        available_slots = [
-            slot for slot in all_slots
-            if slot not in scheduled_visits
-        ]
-        
+        # Define available time slots (9 AM to 6 PM, hourly slots)
+        all_slots = []
+        for hour in range(9, 19):  # 9 AM to 6 PM (19 = 7 PM, but loop stops at 18 = 6 PM)
+            slot_time = timezone.datetime.strptime(f"{hour:02d}:00", "%H:%M").time()
+            if slot_time not in scheduled_visits:
+                all_slots.append({
+                    'time': slot_time.strftime('%H:%M'),
+                    'display_time': slot_time.strftime('%I:%M %p')
+                })
+
         return Response({
             "date": date,
-            "available_slots": available_slots
+            "available_slots": all_slots
         })
 
     @action(detail=False, methods=['get'])
@@ -773,13 +773,13 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
             # Check if the date is not fully booked
             visits_on_date = scheduled_visits.filter(scheduled_date__date=current_date).count()
             
-            # Assuming maximum 8 visits per day (9 AM to 5 PM, hourly slots)
-            if visits_on_date < 8:
+            # Assuming maximum 10 visits per day (9 AM to 6 PM, hourly slots)
+            if visits_on_date < 10:  # Updated from 8 to 10 to match new time range
                 # Don't include weekends
                 if current_date.weekday() < 5:  # Monday = 0, Sunday = 6
                     date_list.append({
                         'date': current_date.isoformat(),
-                        'available_slots': 8 - visits_on_date
+                        'available_slots': 10 - visits_on_date  # Updated from 8 to 10
                     })
             
             current_date += timedelta(days=1)
@@ -869,9 +869,9 @@ class VisitScheduleViewSet(viewsets.ModelViewSet):
             status=VisitSchedule.SCHEDULED
         ).values_list('scheduled_date__time', flat=True)
 
-        # Define available time slots (9 AM to 5 PM, hourly slots)
+        # Define available time slots (9 AM to 6 PM, hourly slots)
         all_slots = []
-        for hour in range(9, 17):  # 9 AM to 4 PM
+        for hour in range(9, 19):  # 9 AM to 6 PM (19 = 7 PM, but loop stops at 18 = 6 PM)
             slot_time = timezone.datetime.strptime(f"{hour:02d}:00", "%H:%M").time()
             if slot_time not in scheduled_times:
                 all_slots.append({
