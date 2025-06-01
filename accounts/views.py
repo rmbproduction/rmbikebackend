@@ -537,24 +537,25 @@ class SignupView(generics.GenericAPIView):
                     token = EmailVerificationToken.objects.filter(user=existing_user).first()
                     if token:
                         return Response({
-                            "error": "An unverified account with this email exists",
+                            "email": ["A user with that email already exists."],
+                            "verification_status": "pending",
                             "message": "Please check your email for the verification link or wait {:.1f} hours to register again.".format(hours_remaining),
-                            "email_verification_required": True,
-                            "email": email,
                             "hours_remaining": round(hours_remaining, 1)
                         }, status=status.HTTP_400_BAD_REQUEST)
                     else:
                         # No valid verification token exists
                         return Response({
-                            "error": "An unverified account with this email exists",
-                            "message": "Please wait {:.1f} hours to register again.".format(hours_remaining),
+                            "email": ["A user with that email already exists."],
+                            "verification_status": "expired",
+                            "message": "Your previous registration has expired. Please wait {:.1f} hours to register again.".format(hours_remaining),
                             "hours_remaining": round(hours_remaining, 1)
                         }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 # User exists and is verified
                 return Response({
-                    "error": "An account with this email already exists",
-                    "message": "Please login with your existing account or use a different email address."
+                    "email": ["A user with that email already exists."],
+                    "verification_status": "verified",
+                    "message": "An account with this email already exists. Please login with your existing account."
                 }, status=status.HTTP_400_BAD_REQUEST)
         
         # Validate password strength
