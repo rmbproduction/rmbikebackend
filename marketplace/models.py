@@ -644,7 +644,7 @@ def create_purchase_offer(sender, instance, created, **kwargs):
         if old_status != instance.status:
             if instance.status == PurchaseOffer.OfferStatus.COUNTER_OFFERED:
                 # Notify admin about counter offer
-                admin_users = User.objects.filter(is_staff=True)
+                admin_users = get_user_model().objects.filter(is_staff=True)
                 for admin in admin_users:
                     Notification.objects.create(
                         user=admin,
@@ -670,7 +670,7 @@ def create_sell_request_notification(sender, instance, created, **kwargs):
     
     if created:
         # New sell request notification for admin
-        admin_users = User.objects.filter(is_staff=True)
+        admin_users = get_user_model().objects.filter(is_staff=True)
         for admin in admin_users:
             Notification.objects.create(
                 user=admin,

@@ -104,6 +104,8 @@ def check_login_attempts(email):
             cache.set(f'account_lockout_{email}', timezone.now() + timezone.timedelta(minutes=30), timeout=1800)
             raise ValidationError("Account locked for 30 minutes due to too many failed attempts.")
 
+User = get_user_model()
+
 class PasswordResetView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = PasswordResetSerializer

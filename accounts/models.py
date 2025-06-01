@@ -76,6 +76,11 @@ class UserProfile(models.Model):
     country = models.CharField(max_length=100, blank=True, null=True)
     postal_code = models.CharField(max_length=10, blank=True, null=True)
     phone = models.CharField(max_length=15, blank=True, null=True)
+    
+    # Vehicle information
+    vehicle_name = models.ForeignKey('vehicle.VehicleModel', on_delete=models.SET_NULL, null=True, blank=True)
+    vehicle_type = models.ForeignKey('vehicle.VehicleType', on_delete=models.SET_NULL, null=True, blank=True)
+    manufacturer = models.ForeignKey('vehicle.Manufacturer', on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username}'s Profile"

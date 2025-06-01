@@ -8,6 +8,9 @@ from subscription_plan.models import Subscription
 from vehicle.models import Vehicle
 from accounts.models import User
 from django.contrib.admin.models import LogEntry
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 @staff_member_required
 def admin_dashboard(request):
@@ -72,4 +75,10 @@ def admin_dashboard(request):
         'recent_activities': recent_activities,
     }
 
-    return render(request, 'admin/dashboard.html', context) 
+    return render(request, 'admin/dashboard.html', context)
+
+def get_user_stats():
+    """Get user statistics"""
+    total_users = get_user_model().objects.count()
+    active_users = get_user_model().objects.filter(is_active=True).count()
+    staff_count = get_user_model().objects.filter(is_staff=True).count() 

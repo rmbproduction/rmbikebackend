@@ -546,3 +546,7 @@ class AdminDashboardConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"Error updating request status: {e}")
             return False, None
+
+def get_stats():
+    """Get current statistics"""
+    total_users = get_user_model().objects.count()

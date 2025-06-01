@@ -70,20 +70,20 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         """Validate email format and uniqueness"""
-        if User.objects.filter(email=value).exists():
+        if get_user_model().objects.filter(email=value).exists():
             raise serializers.ValidationError("A user with this email already exists.")
         return value.lower()  # Convert email to lowercase
 
     def validate_username(self, value):
         """Validate username format and uniqueness"""
-        if User.objects.filter(username=value).exists():
+        if get_user_model().objects.filter(username=value).exists():
             raise serializers.ValidationError("This username is already taken.")
         if not value.strip():
             raise serializers.ValidationError("Username cannot be blank.")
         return value.strip()
 
     def create(self, validated_data):
-        user = User.objects.create_user(
+        user = get_user_model().objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password']
@@ -93,13 +93,16 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
+    vehicle_name = serializers.PrimaryKeyRelatedField(queryset=VehicleModel.objects.all(), required=False)
+    vehicle_type = serializers.PrimaryKeyRelatedField(queryset=VehicleType.objects.all(), required=False)
+    manufacturer = serializers.PrimaryKeyRelatedField(queryset=Manufacturer.objects.all(), required=False)
 
     class Meta:
         model = UserProfile
         fields = [
             'id', 'user', 'email', 'username', 'name', 'phone',
             'address', 'city', 'state', 'postal_code', 'country',
-            'profile_photo'
+            'profile_photo', 'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
         read_only_fields = ['id', 'user']
 

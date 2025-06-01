@@ -8,10 +8,13 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
 import uuid
+from django.contrib.auth import get_user_model
 
 from marketplace.models import Vehicle, SellRequest, Notification, VehiclePurchase
 from accounts.models import User, UserProfile
 from repairing_service.models import ServiceRequest
+
+User = get_user_model()
 
 class AdminDashboardStatisticsView(APIView):
     """

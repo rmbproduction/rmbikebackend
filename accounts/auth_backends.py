@@ -11,7 +11,7 @@ class EmailBackend(ModelBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
         # Try to find user by either email or username
         try:
-            user = User.objects.get(
+            user = get_user_model().objects.get(
                 Q(username=username) | Q(email=username)
             )
             
@@ -21,7 +21,7 @@ class EmailBackend(ModelBackend):
                 if user.email_verified:
                     return user
                     
-        except User.DoesNotExist:
+        except get_user_model().DoesNotExist:
             # No user found with this email/username
             return None
             
@@ -30,6 +30,6 @@ class EmailBackend(ModelBackend):
         
     def get_user(self, user_id):
         try:
-            return User.objects.get(pk=user_id)
-        except User.DoesNotExist:
+            return get_user_model().objects.get(pk=user_id)
+        except get_user_model().DoesNotExist:
             return None 

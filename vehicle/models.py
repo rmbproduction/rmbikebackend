@@ -1,5 +1,5 @@
 from django.db import models
-from accounts.models import UserProfile
+from django.conf import settings
 import cloudinary.uploader
 from utils.cdn_utils import cdn_manager
 
@@ -132,7 +132,7 @@ class VehicleImage(models.Model):
         )
 
 class UserVehicle(models.Model):
-    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='vehicles', db_index=True)
+    user = models.ForeignKey('accounts.UserProfile', on_delete=models.CASCADE, related_name='vehicles', db_index=True)
     
     # Vehicle information stored as strings
     vehicle_type_name = models.CharField(max_length=50, null=True, blank=True, db_index=True)

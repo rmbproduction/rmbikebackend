@@ -671,7 +671,7 @@ class VehicleBookingViewSet(viewsets.ModelViewSet):
         )
         
         # Create notification for staff
-        staff_users = User.objects.filter(is_staff=True)
+        staff_users = get_user_model().objects.filter(is_staff=True)
         for staff_user in staff_users:
             Notification.objects.create(
                 user=staff_user,
