@@ -496,9 +496,24 @@ class SignupView(generics.GenericAPIView):
 
     def _get_frontend_url(self, request, environment):
         """Helper method to determine frontend URL"""
+        # In production, always use the production domain
         if environment == 'production':
             return 'https://repairmybike.in'
-        return settings.FRONTEND_URL
+            
+        # For development, try to determine frontend URL from headers
+        referer = request.headers.get('Referer')
+        if referer:
+            # Extract domain from referer
+            from urllib.parse import urlparse
+            parsed_uri = urlparse(referer)
+            frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+            # Safety check to prevent localhost URLs in production-like environments
+            if 'railway.app' in request.get_host() and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
+                return 'https://repairmybike.in'
+            return frontend_url
+            
+        # Fallback to settings FRONTEND_URL
+        return getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
 
     def _send_verification_email(self, user, verification_url):
         """Helper method to send verification email"""
@@ -521,7 +536,7 @@ The Repair My Bike Team""",
                 recipient_list=[user.email],
                 fail_silently=True,  # Set to True to prevent email errors from breaking signup
             )
-            logger.info(f"Verification email sent successfully to {user.email}")
+            logger.info(f"Verification email sent successfully to {user.email} with URL: {verification_url}")
             return True
         except Exception as e:
             logger.error(f"Failed to send verification email to {user.email}: {str(e)}")

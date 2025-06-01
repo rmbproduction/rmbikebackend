@@ -20,9 +20,6 @@ class UserProfileAdmin(admin.ModelAdmin):
         ('Address Information', {
             'fields': ('address', 'city', 'state', 'country', 'postal_code')
         }),
-        ('Vehicle Information', {
-            'fields': ('vehicle_name', 'vehicle_type', 'manufacturer')
-        }),
     )
 
     def get_email(self, obj):
