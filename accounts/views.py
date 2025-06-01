@@ -841,12 +841,12 @@ class UserProfileView(APIView):
                 profile = UserProfile.objects.get(user=request.user)
                 created = False
             except UserProfile.DoesNotExist:
+                # Create profile with only required fields
                 profile = UserProfile.objects.create(
                     user=request.user,
                     name=request.user.get_full_name() or request.user.username,
-                    vehicle_name=None,
-                    vehicle_type=None,
-                    manufacturer=None
+                    address='',  # Required field with empty default
+                    country='India'  # Default country
                 )
                 created = True
             

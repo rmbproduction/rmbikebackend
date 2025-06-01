@@ -96,6 +96,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
     vehicle_name = serializers.IntegerField(required=False, allow_null=True)
     vehicle_type = serializers.IntegerField(required=False, allow_null=True)
     manufacturer = serializers.IntegerField(required=False, allow_null=True)
+    city = serializers.CharField(required=False, allow_null=True)
+    state = serializers.CharField(required=False, allow_null=True)
+    postal_code = serializers.CharField(required=False, allow_null=True)
+    phone = serializers.CharField(required=False, allow_null=True)
+    country = serializers.CharField(required=False, default='India')
+    address = serializers.CharField(required=True, allow_blank=True)
 
     class Meta:
         model = UserProfile
@@ -120,12 +126,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if self.instance is None:  # Creation
-            required_fields = ['name', 'address']
-            for field in required_fields:
-                if field not in data:
-                    raise serializers.ValidationError({
-                        field: f"{field.replace('_', ' ').title()} is required"
-                    })
+            # Ensure name is present
+            if 'name' not in data or not data['name'].strip():
+                raise serializers.ValidationError({
+                    'name': 'Name is required'
+                })
+            
+            # Ensure address exists (can be empty)
+            if 'address' not in data:
+                data['address'] = ''
+                
+            # Set default country if not provided
+            if 'country' not in data:
+                data['country'] = 'India'
+                
         return data
 
 class UserProfileWriteSerializer(serializers.ModelSerializer):
