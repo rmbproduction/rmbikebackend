@@ -300,11 +300,27 @@ class SellRequestSerializer(serializers.ModelSerializer):
         }
 
     def validate_pickup_slot(self, value):
+        """Validate that the pickup slot is within business hours"""
         if value and value < timezone.now():
             raise serializers.ValidationError("Pickup slot cannot be in the past")
-        # Ensure pickup slot is during business hours (9 AM to 6 PM)
-        if value and (value.hour < 9 or value.hour >= 18):
-            raise serializers.ValidationError("Pickup slot must be between 9 AM and 6 PM")
+        
+        # Ensure pickup slot is during business hours (9 AM to 6 PM inclusive)
+        if value:
+            hour = value.hour
+            minute = value.minute
+            
+            # Check if time is before 9 AM
+            if hour < 9 or (hour == 9 and minute < 0):
+                raise serializers.ValidationError("Pickup slot cannot be before 9:00 AM")
+            
+            # Check if time is after 6 PM
+            if hour > 18 or (hour == 18 and minute > 0):
+                raise serializers.ValidationError("Pickup slot cannot be after 6:00 PM")
+            
+            # Check if minutes are either 0 or 30
+            if minute not in [0, 30]:
+                raise serializers.ValidationError("Pickup slot must be at the start of the hour or half hour (e.g., 9:00 AM, 9:30 AM)")
+        
         return value
 
     def validate_photos(self, value):

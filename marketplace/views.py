@@ -34,12 +34,13 @@ User = get_user_model()
 
 class VehicleViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for Vehicle model with advanced filtering and search capabilities
+    ViewSet for Vehicle model with advanced filtering and search capabilities.
+    By default, all endpoints require authentication except for specific public actions.
     """
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]  # Default to requiring authentication
     # Filterable fields
     filterset_fields = {
         'vehicle_type': ['exact'],
@@ -95,10 +96,11 @@ class VehicleViewSet(viewsets.ModelViewSet):
         
         return queryset
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def check_registration_number(self, request):
         """
         Check if a registration number already exists
+        Only authenticated users can check registration numbers
         """
         registration_number = request.query_params.get('registration_number', '')
         if not registration_number:
@@ -115,7 +117,11 @@ class VehicleViewSet(viewsets.ModelViewSet):
             registration_number__iexact=normalized_reg_number
         ).exists()
         
-        return Response({"exists": exists})
+        return Response({
+            "exists": exists,
+            "registration_number": normalized_reg_number,
+            "message": "Registration number is available" if not exists else "Registration number already exists"
+        })
 
     @action(detail=False, methods=['get'])
     def filters(self):
@@ -274,6 +280,26 @@ class VehicleViewSet(viewsets.ModelViewSet):
             {"detail": error_message},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def public_list(self, request):
+        """
+        Public endpoint to list available vehicles without requiring authentication.
+        This endpoint only returns basic vehicle information for public display.
+        """
+        queryset = self.get_queryset().filter(status=Vehicle.Status.AVAILABLE)
+        
+        # Apply filters from query params
+        for backend in list(self.filter_backends):
+            queryset = backend().filter_queryset(request, queryset, self)
+            
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+            
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 class SellRequestViewSet(viewsets.ModelViewSet):
     """
