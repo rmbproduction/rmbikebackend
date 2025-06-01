@@ -507,74 +507,15 @@ class SignupView(generics.GenericAPIView):
             serializer = self.get_serializer(data=request.data)
             
             if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # Transform validation errors into a more user-friendly format
+                errors = {}
+                for field, error_list in serializer.errors.items():
+                    errors[field] = [str(error) for error in error_list]
+                return Response({
+                    "error": "Validation failed",
+                    "details": errors
+                }, status=status.HTTP_400_BAD_REQUEST)
             
-            email = serializer.validated_data.get('email')
-            password = serializer.validated_data.get('password')
-            
-            # Check if user already exists
-            existing_user = User.objects.filter(email=email).first()
-            if existing_user:
-                # If user exists but is not verified
-                if not existing_user.email_verified and not existing_user.is_active:
-                    # Check if the account is older than 24 hours
-                    account_age = timezone.now() - existing_user.date_joined
-                    if account_age > timezone.timedelta(hours=24):
-                        # Delete old unverified account and its verification tokens
-                        EmailVerificationToken.objects.filter(user=existing_user).delete()
-                        existing_user.delete()
-                    else:
-                        # Account is too new, must wait for the 24-hour period
-                        hours_remaining = 24 - (account_age.total_seconds() / 3600)
-                        
-                        # Check if we should send a new verification email
-                        token = EmailVerificationToken.objects.filter(user=existing_user).first()
-                        token_age = timezone.now() - token.created_at if token else timezone.timedelta(hours=25)
-                        
-                        if token_age > timezone.timedelta(hours=1):  # Only send new email if last one is older than 1 hour
-                            try:
-                                # Delete old token if exists
-                                if token:
-                                    token.delete()
-                                    cache.delete(f'email_verification_{token.token}')
-                                
-                                # Generate new verification token
-                                new_token = get_random_string(64)
-                                EmailVerificationToken.objects.create(
-                                    user=existing_user,
-                                    token=new_token
-                                )
-                                cache.set(f'email_verification_{new_token}', existing_user.pk, timeout=86400)
-                                
-                                # Get frontend URL and send new verification email
-                                environment = os.environ.get('ENVIRONMENT', 'development')
-                                frontend_url = self._get_frontend_url(request, environment)
-                                verification_url = f"{frontend_url}/verify-email/{new_token}"
-                                self._send_verification_email(existing_user, verification_url)
-                            except Exception as e:
-                                logger.error(f"Error sending verification email: {str(e)}")
-                                # Don't expose the error to the user, just inform them to wait
-                        
-                        # Return same error message regardless of whether we sent new email
-                        return Response({
-                            "email": ["A user with that email already exists."],
-                            "message": "An account with this email already exists. Please check your email for verification instructions.",
-                            "hours_remaining": round(hours_remaining, 1),
-                            "verification_token_exists": token is not None
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    # User exists and is verified
-                    return Response({
-                        "email": ["A user with that email already exists."],
-                        "message": "An account with this email already exists. Please login with your existing account."
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Rest of the signup logic for new users...
-            try:
-                validate_password_strength(password)
-            except ValidationError as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-                
             # Create user account (inactive until email is verified)
             try:
                 user = serializer.save()
@@ -606,13 +547,13 @@ class SignupView(generics.GenericAPIView):
                     # Don't delete the user, just inform them about the email issue
                     return Response({
                         "message": "Account created but there was an issue sending the verification email. Please try again later or contact support.",
-                        "email": email,
+                        "email": user.email,
                         "verification_required": True
                     }, status=status.HTTP_201_CREATED)
                 
                 return Response({
                     "message": "Registration successful! Please check your email to verify your account.",
-                    "email": email,
+                    "email": user.email,
                     "verification_required": True,
                     "next_step": "Please verify your email before logging in. Check your inbox for a verification link."
                 }, status=status.HTTP_201_CREATED)

@@ -49,8 +49,38 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'password', 'verification_token', 'email_verified', 'is_admin')
         extra_kwargs = {
             'password': {'write_only': True},
-            'email_verified': {'read_only': True}
+            'email_verified': {'read_only': True},
+            'username': {'required': True, 'min_length': 3},
+            'email': {'required': True},
         }
+
+    def validate_password(self, value):
+        """Validate password strength"""
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long")
+        if not any(c.isupper() for c in value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in value):
+            raise serializers.ValidationError("Password must contain at least one number")
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in value):
+            raise serializers.ValidationError("Password must contain at least one special character")
+        return value
+
+    def validate_email(self, value):
+        """Validate email format and uniqueness"""
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value.lower()  # Convert email to lowercase
+
+    def validate_username(self, value):
+        """Validate username format and uniqueness"""
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        if not value.strip():
+            raise serializers.ValidationError("Username cannot be blank.")
+        return value.strip()
 
     def create(self, validated_data):
         user = User.objects.create_user(
