@@ -290,66 +290,67 @@ class LoginView(APIView):
             email = serializer.validated_data['email']
             password = serializer.validated_data['password']
 
+            # First check if user exists and is unverified
+            try:
+                user = User.objects.get(email=email)
+                if not user.is_active and not user.email_verified:
+                    # Check if verification token exists
+                    token = EmailVerificationToken.objects.filter(user=user).first()
+                    if token:
+                        return Response({
+                            "error": "Please verify your email before logging in",
+                            "email_verification_required": True,
+                            "email": email,
+                            "message": "Your account exists but is not verified. Please check your email for the verification link or request a new one."
+                        }, status=status.HTTP_401_UNAUTHORIZED)
+                    else:
+                        # If no token exists, suggest re-registration
+                        return Response({
+                            "error": "Unverified account with expired verification link",
+                            "message": "Your previous registration was not completed. Please register again.",
+                            "should_register_again": True
+                        }, status=status.HTTP_401_UNAUTHORIZED)
+            except User.DoesNotExist:
+                pass
+
             # Try to check login attempts
             try:
                 check_login_attempts(email)
             except ValidationError as e:
                 return Response({"error": str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            except Exception as e:
-                logger.error(f"Error checking login attempts: {str(e)}")
-
-            # Check if user exists but is not verified
-            try:
-                user_exists = User.objects.filter(email=email).exists()
-                user_obj = User.objects.get(email=email) if user_exists else None
-                
-                if user_exists and not user_obj.is_active:
-                    return Response({
-                        "error": "Please verify your email before logging in",
-                        "email_verification_required": True,
-                        "email": email
-                    }, status=status.HTTP_401_UNAUTHORIZED)
-            except Exception as e:
-                logger.error(f"Error checking user verification status: {str(e)}")
 
             # Authenticate user
             user = authenticate(request, email=email, password=password)
             
             if not user:
                 # Increment failed login attempts
-                try:
-                    attempts = cache.get(f'login_attempts_{email}', 0)
-                    cache.set(f'login_attempts_{email}', attempts + 1, timeout=3600)
-                except Exception as e:
-                    logger.error(f"Error tracking failed login attempts: {str(e)}")
+                attempts = cache.get(f'login_attempts_{email}', 0)
+                cache.set(f'login_attempts_{email}', attempts + 1, timeout=3600)
                 
-                logger.warning(f"Failed login attempt for {email}")
+                # Check if user exists but password is wrong
+                try:
+                    existing_user = User.objects.get(email=email)
+                    if existing_user.is_active and existing_user.email_verified:
+                        return Response({
+                            "error": "Invalid password"
+                        }, status=status.HTTP_401_UNAUTHORIZED)
+                except User.DoesNotExist:
+                    return Response({
+                        "error": "No account found with this email"
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+                
                 return Response({
                     "error": "Invalid credentials"
                 }, status=status.HTTP_401_UNAUTHORIZED)
             
             # Reset login attempts on successful login
-            try:
-                cache.delete(f'login_attempts_{email}')
-                cache.delete(f'account_lockout_{email}')
-            except Exception as e:
-                logger.error(f"Error clearing login attempts: {str(e)}")
+            cache.delete(f'login_attempts_{email}')
+            cache.delete(f'account_lockout_{email}')
             
-            logger.info(f"Successful login for {email}")
-
             # Get tokens with custom claims
             try:
                 tokens = get_tokens_for_user(user)
-                
-                # Check if this is first login after verification
                 is_first_login = user.last_login is None
-                
-                # Log token generation
-                logger.info("Generated login tokens", extra={
-                    'user_id': user.id,
-                    'access_token_length': len(tokens['access']),
-                    'refresh_token_length': len(tokens['refresh'])
-                })
                 
                 return Response({
                     "message": "Login successful",
@@ -521,7 +522,7 @@ class SignupView(generics.GenericAPIView):
         # Check if user already exists
         existing_user = User.objects.filter(email=email).first()
         if existing_user:
-            # If user exists but is not verified and the account is older than 24 hours
+            # If user exists but is not verified
             if not existing_user.email_verified and not existing_user.is_active:
                 # Check if the account is older than 24 hours
                 account_age = timezone.now() - existing_user.date_joined
@@ -530,15 +531,30 @@ class SignupView(generics.GenericAPIView):
                     EmailVerificationToken.objects.filter(user=existing_user).delete()
                     existing_user.delete()
                 else:
-                    # Account is too new, must wait for the 24-hour period
+                    # Account is too new, must wait for the 24-hour period or verify
                     hours_remaining = 24 - (account_age.total_seconds() / 3600)
-                    return Response({
-                        "error": f"An unverified account with this email exists. Please verify it or wait {int(hours_remaining)} hours to create a new account."
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    # Check if verification token exists
+                    token = EmailVerificationToken.objects.filter(user=existing_user).first()
+                    if token:
+                        return Response({
+                            "error": "An unverified account with this email exists",
+                            "message": "Please check your email for the verification link or wait {:.1f} hours to register again.".format(hours_remaining),
+                            "email_verification_required": True,
+                            "email": email,
+                            "hours_remaining": round(hours_remaining, 1)
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        # No valid verification token exists
+                        return Response({
+                            "error": "An unverified account with this email exists",
+                            "message": "Please wait {:.1f} hours to register again.".format(hours_remaining),
+                            "hours_remaining": round(hours_remaining, 1)
+                        }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 # User exists and is verified
                 return Response({
-                    "error": "User with this email already exists"
+                    "error": "An account with this email already exists",
+                    "message": "Please login with your existing account or use a different email address."
                 }, status=status.HTTP_400_BAD_REQUEST)
         
         # Validate password strength
@@ -566,61 +582,13 @@ class SignupView(generics.GenericAPIView):
                 token=token
             )
             
-            # Get the environment
+            # Get the environment and generate verification URL
             environment = os.environ.get('ENVIRONMENT', 'development')
-            
-            # Generate verification URL
-            # For production, always use the production domain
-            if environment == 'production':
-                frontend_url = 'https://repairmybike.in'
-            else:
-                # For development, use the origin header from the request if available
-                origin = request.headers.get('Origin')
-                if origin and 'localhost' in origin:
-                    # Use the origin as frontend URL if it contains localhost
-                    frontend_url = origin
-                else:
-                    # Extract domain from referer header if available
-                    referer = request.headers.get('Referer')
-                    if referer:
-                        # Extract domain from referer (http://domain or https://domain)
-                        from urllib.parse import urlparse
-                        parsed_uri = urlparse(referer)
-                        frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-                    else:
-                        # Fallback to settings FRONTEND_URL
-                        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
-            
-            # Safety check to prevent localhost URLs in production
-            if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
-                frontend_url = 'https://repairmybike.in'
-                
+            frontend_url = self._get_frontend_url(request, environment)
             verification_url = f"{frontend_url}/verify-email/{token}"
             
-            logger.info(f"Generated verification URL with frontend_url: {frontend_url}")
-            
-            # Send verification email using EMAIL_HOST_USER as sender
-            send_mail(
-                subject="Verify Your Email - Repair My Bike",
-                message=f"""Thank you for signing up with Repair My Bike!
-
-Please click the link below to verify your email address:
-
-{verification_url}
-
-This link will expire in 24 hours.
-
-If you did not create an account, please ignore this email.
-
-Best regards,
-The Repair My Bike Team""",
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
-            
-            # Log signup
-            logger.info(f"New user signed up: {email}")
+            # Send verification email
+            self._send_verification_email(user, verification_url)
             
             return Response({
                 "message": "Registration successful! Please check your email to verify your account.",
@@ -636,6 +604,44 @@ The Repair My Bike Team""",
             return Response({
                 "error": "Failed to create account. Please try again later."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    def _get_frontend_url(self, request, environment):
+        """Helper method to determine frontend URL"""
+        if environment == 'production':
+            return 'https://repairmybike.in'
+            
+        origin = request.headers.get('Origin')
+        if origin and 'localhost' in origin:
+            return origin
+            
+        referer = request.headers.get('Referer')
+        if referer:
+            from urllib.parse import urlparse
+            parsed_uri = urlparse(referer)
+            return f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+            
+        return getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
+        
+    def _send_verification_email(self, user, verification_url):
+        """Helper method to send verification email"""
+        send_mail(
+            subject="Verify Your Email - Repair My Bike",
+            message=f"""Thank you for signing up with Repair My Bike!
+
+Please click the link below to verify your email address:
+
+{verification_url}
+
+This link will expire in 24 hours.
+
+If you did not create an account, please ignore this email.
+
+Best regards,
+The Repair My Bike Team""",
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
 
 class VerifyEmailView(APIView):
     permission_classes = (permissions.AllowAny,)
