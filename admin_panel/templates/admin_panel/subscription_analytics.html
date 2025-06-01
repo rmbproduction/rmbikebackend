@@ -1,0 +1,85 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <h1 class="text-2xl font-bold mb-6">Subscription Analytics</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Plan Distribution -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Plan Distribution</h2>
+            <canvas id="planChart"></canvas>
+        </div>
+
+        <!-- Visit Status Distribution -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Visit Status Distribution</h2>
+            <canvas id="visitChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Parse Django template variables into JavaScript objects
+    const planData = JSON.parse('{{ plan_distribution|safe|escapejs }}');
+    const visitData = JSON.parse('{{ visit_status|safe|escapejs }}');
+
+    // Plan Distribution Chart
+    const planCtx = document.getElementById('planChart').getContext('2d');
+    new Chart(planCtx, {
+        type: 'pie',
+        data: {
+            labels: planData.map(item => item.plan_variant__plan__name),
+            datasets: [{
+                data: planData.map(item => item.count),
+                backgroundColor: [
+                    'rgb(59, 130, 246)',
+                    'rgb(16, 185, 129)',
+                    'rgb(239, 68, 68)',
+                    'rgb(245, 158, 11)',
+                    'rgb(139, 92, 246)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Visit Status Chart
+    const visitCtx = document.getElementById('visitChart').getContext('2d');
+    new Chart(visitCtx, {
+        type: 'pie',
+        data: {
+            labels: visitData.map(item => item.status),
+            datasets: [{
+                data: visitData.map(item => item.count),
+                backgroundColor: [
+                    'rgb(16, 185, 129)',
+                    'rgb(245, 158, 11)',
+                    'rgb(239, 68, 68)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+</script>
+{% endblock %} 

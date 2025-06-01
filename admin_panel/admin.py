@@ -1,0 +1,1 @@
+# This file is intentionally empty since all models are registered in their respective apps 

@@ -1,0 +1,123 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Users Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm font-medium">Users</h3>
+            <p class="text-3xl font-bold">{{ total_users }}</p>
+            <div class="mt-2">
+                <span class="text-sm text-gray-500">New (30d): {{ new_users_30d }}</span>
+                <span class="text-sm text-gray-500 ml-4">Active: {{ active_users }}</span>
+            </div>
+        </div>
+
+        <!-- Vehicles Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm font-medium">Vehicles</h3>
+            <p class="text-3xl font-bold">{{ total_vehicles }}</p>
+            <div class="mt-2">
+                <span class="text-sm text-gray-500">For Sale: {{ vehicles_for_sale }}</span>
+            </div>
+        </div>
+
+        <!-- Services Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm font-medium">Services</h3>
+            <p class="text-3xl font-bold">{{ total_services }}</p>
+            <div class="mt-2">
+                <span class="text-sm text-gray-500">Pending: {{ pending_services }}</span>
+                <span class="text-sm text-gray-500 ml-4">Completed: {{ completed_services }}</span>
+            </div>
+        </div>
+
+        <!-- Subscriptions Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm font-medium">Subscriptions</h3>
+            <p class="text-3xl font-bold">{{ active_subscriptions }}</p>
+            <div class="mt-2">
+                <span class="text-sm text-gray-500">Pending: {{ pending_subscriptions }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- User Growth Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm font-medium mb-4">User Growth (Last 30 Days)</h3>
+            <canvas id="userGrowthChart"></canvas>
+        </div>
+
+        <!-- Service Requests Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm font-medium mb-4">Service Requests (Last 30 Days)</h3>
+            <canvas id="serviceRequestsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // User Growth Chart
+    const userCtx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(userCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_users|safe }}.map(item => item.day),
+            datasets: [{
+                label: 'New Users',
+                data: {{ monthly_users|safe }}.map(item => item.count),
+                borderColor: 'rgb(59, 130, 246)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+
+    // Service Requests Chart
+    const serviceCtx = document.getElementById('serviceRequestsChart').getContext('2d');
+    new Chart(serviceCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_services|safe }}.map(item => item.day),
+            datasets: [{
+                label: 'Service Requests',
+                data: {{ monthly_services|safe }}.map(item => item.count),
+                borderColor: 'rgb(239, 68, 68)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %} 

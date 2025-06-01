@@ -144,6 +144,7 @@ INSTALLED_APPS = [
     'cloudinary',
     'cloudinary_storage',
     'tools.image_optimizer.apps.ImageOptimizerConfig',
+    'admin_panel',
 ]
 
 MIDDLEWARE = [
