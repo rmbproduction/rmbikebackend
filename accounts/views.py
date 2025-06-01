@@ -519,10 +519,27 @@ class SignupView(generics.GenericAPIView):
         password = serializer.validated_data.get('password')
         
         # Check if user already exists
-        if User.objects.filter(email=email).exists():
-            return Response({
-                "error": "User with this email already exists"
-            }, status=status.HTTP_400_BAD_REQUEST)
+        existing_user = User.objects.filter(email=email).first()
+        if existing_user:
+            # If user exists but is not verified and the account is older than 24 hours
+            if not existing_user.email_verified and not existing_user.is_active:
+                # Check if the account is older than 24 hours
+                account_age = timezone.now() - existing_user.date_joined
+                if account_age > timezone.timedelta(hours=24):
+                    # Delete old unverified account and its verification tokens
+                    EmailVerificationToken.objects.filter(user=existing_user).delete()
+                    existing_user.delete()
+                else:
+                    # Account is too new, must wait for the 24-hour period
+                    hours_remaining = 24 - (account_age.total_seconds() / 3600)
+                    return Response({
+                        "error": f"An unverified account with this email exists. Please verify it or wait {int(hours_remaining)} hours to create a new account."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                # User exists and is verified
+                return Response({
+                    "error": "User with this email already exists"
+                }, status=status.HTTP_400_BAD_REQUEST)
         
         # Validate password strength
         try:
