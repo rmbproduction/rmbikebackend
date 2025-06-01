@@ -147,17 +147,17 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Add this as the first middleware
+    'corsheaders.middleware.CorsMiddleware',  # Keep this as the first middleware
+    'django.middleware.common.CommonMiddleware',  # This should come right after CORS
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this after security middleware
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'accounts.middleware.RoleMiddleware',  # Add this line
-    'tools.middleware.CacheControlMiddleware',  # Add cache control middleware
+    'accounts.middleware.RoleMiddleware',
+    'tools.middleware.CacheControlMiddleware',
 ]
 
 # Service Ports Configuration
@@ -188,14 +188,8 @@ CORS_ALLOWED_ORIGINS = [
 
 # CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
-
-# Only allow all origins in development
-if os.environ.get('ENVIRONMENT', 'development') == 'development':
-    CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ORIGIN_ALLOW_ALL = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOW_ALL_ORIGINS = False  # Disable this to enforce specific origins
+CORS_ORIGIN_ALLOW_ALL = False   # Disable this to enforce specific origins
 
 # Enhanced CORS Headers
 CORS_ALLOW_METHODS = [
@@ -217,11 +211,6 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
-    'access-control-allow-origin',
-    'access-control-allow-headers',
-    'access-control-allow-methods',
-    'access-control-max-age',
-    'access-control-allow-credentials',
 ]
 
 # Additional CORS Settings
@@ -525,13 +514,16 @@ CELERY_FLOWER_PORT = SERVICE_PORTS['CELERY_FLOWER']
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.hostinger.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
-SUPPORT_FROM_EMAIL = config('SUPPORT_FROM_EMAIL', default='support@repairmybike.in')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@repairmybike.in')
+
+# For development, if email settings are not configured, use console backend
+if os.environ.get('ENVIRONMENT') == 'development' and not all([EMAIL_HOST_USER, EMAIL_HOST_PASSWORD]):
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [

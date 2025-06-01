@@ -492,134 +492,141 @@ class SignupView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = UserSerializer
     renderer_classes = [JSONRenderer, BrowsableAPIRenderer]
-
-    def get(self, request):
-        """Return information about the signup endpoint"""
-        return Response({
-            "message": "Welcome to the signup endpoint",
-            "instructions": "Send a POST request with email, username, and password to create an account",
-            "requirements": {
-                "email": "Valid email address",
-                "username": "Username for your account",
-                "password": "Strong password that meets security requirements"
-            }
-        }, status=status.HTTP_200_OK)
+    parser_classes = (JSONParser,)
 
     @method_decorator(csrf_exempt)
     @method_decorator(ratelimit(key='ip', rate='20/h', method=['POST']))
     def post(self, request):
-        if getattr(request, 'limited', False):
-            return Response({
-                "error": "Too many signup attempts. Please try again later.",
-                "detail": "Rate limit exceeded"
-            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        try:
+            if getattr(request, 'limited', False):
+                return Response({
+                    "error": "Too many signup attempts. Please try again later.",
+                    "detail": "Rate limit exceeded"
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        serializer = self.get_serializer(data=request.data)
-        
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        email = serializer.validated_data.get('email')
-        password = serializer.validated_data.get('password')
-        
-        # Check if user already exists
-        existing_user = User.objects.filter(email=email).first()
-        if existing_user:
-            # If user exists but is not verified
-            if not existing_user.email_verified and not existing_user.is_active:
-                # Check if the account is older than 24 hours
-                account_age = timezone.now() - existing_user.date_joined
-                if account_age > timezone.timedelta(hours=24):
-                    # Delete old unverified account and its verification tokens
-                    EmailVerificationToken.objects.filter(user=existing_user).delete()
-                    existing_user.delete()
+            serializer = self.get_serializer(data=request.data)
+            
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            email = serializer.validated_data.get('email')
+            password = serializer.validated_data.get('password')
+            
+            # Check if user already exists
+            existing_user = User.objects.filter(email=email).first()
+            if existing_user:
+                # If user exists but is not verified
+                if not existing_user.email_verified and not existing_user.is_active:
+                    # Check if the account is older than 24 hours
+                    account_age = timezone.now() - existing_user.date_joined
+                    if account_age > timezone.timedelta(hours=24):
+                        # Delete old unverified account and its verification tokens
+                        EmailVerificationToken.objects.filter(user=existing_user).delete()
+                        existing_user.delete()
+                    else:
+                        # Account is too new, must wait for the 24-hour period
+                        hours_remaining = 24 - (account_age.total_seconds() / 3600)
+                        
+                        # Check if we should send a new verification email
+                        token = EmailVerificationToken.objects.filter(user=existing_user).first()
+                        token_age = timezone.now() - token.created_at if token else timezone.timedelta(hours=25)
+                        
+                        if token_age > timezone.timedelta(hours=1):  # Only send new email if last one is older than 1 hour
+                            try:
+                                # Delete old token if exists
+                                if token:
+                                    token.delete()
+                                    cache.delete(f'email_verification_{token.token}')
+                                
+                                # Generate new verification token
+                                new_token = get_random_string(64)
+                                EmailVerificationToken.objects.create(
+                                    user=existing_user,
+                                    token=new_token
+                                )
+                                cache.set(f'email_verification_{new_token}', existing_user.pk, timeout=86400)
+                                
+                                # Get frontend URL and send new verification email
+                                environment = os.environ.get('ENVIRONMENT', 'development')
+                                frontend_url = self._get_frontend_url(request, environment)
+                                verification_url = f"{frontend_url}/verify-email/{new_token}"
+                                self._send_verification_email(existing_user, verification_url)
+                            except Exception as e:
+                                logger.error(f"Error sending verification email: {str(e)}")
+                                # Don't expose the error to the user, just inform them to wait
+                        
+                        # Return same error message regardless of whether we sent new email
+                        return Response({
+                            "email": ["A user with that email already exists."],
+                            "message": "An account with this email already exists. Please check your email for verification instructions.",
+                            "hours_remaining": round(hours_remaining, 1),
+                            "verification_token_exists": token is not None
+                        }, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    # Account is too new, must wait for the 24-hour period
-                    hours_remaining = 24 - (account_age.total_seconds() / 3600)
-                    
-                    # Check if we should send a new verification email
-                    token = EmailVerificationToken.objects.filter(user=existing_user).first()
-                    token_age = timezone.now() - token.created_at if token else timezone.timedelta(hours=25)
-                    
-                    if token_age > timezone.timedelta(hours=1):  # Only send new email if last one is older than 1 hour
-                        # Delete old token if exists
-                        if token:
-                            token.delete()
-                            cache.delete(f'email_verification_{token.token}')
-                        
-                        # Generate new verification token
-                        new_token = get_random_string(64)
-                        EmailVerificationToken.objects.create(
-                            user=existing_user,
-                            token=new_token
-                        )
-                        cache.set(f'email_verification_{new_token}', existing_user.pk, timeout=86400)
-                        
-                        # Get frontend URL and send new verification email
-                        environment = os.environ.get('ENVIRONMENT', 'development')
-                        frontend_url = self._get_frontend_url(request, environment)
-                        verification_url = f"{frontend_url}/verify-email/{new_token}"
-                        self._send_verification_email(existing_user, verification_url)
-                    
-                    # Return same error message regardless of whether we sent new email
+                    # User exists and is verified
                     return Response({
                         "email": ["A user with that email already exists."],
-                        "message": "An account with this email already exists. Please check your email for verification instructions.",
-                        "hours_remaining": round(hours_remaining, 1)
+                        "message": "An account with this email already exists. Please login with your existing account."
                     }, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                # User exists and is verified
+            
+            # Rest of the signup logic for new users...
+            try:
+                validate_password_strength(password)
+            except ValidationError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                
+            # Create user account (inactive until email is verified)
+            try:
+                user = serializer.save()
+                user.is_active = False  # Disable until email verification
+                user.save()
+                
+                # Generate verification token
+                token = get_random_string(64)
+                
+                # Store in both cache and database for redundancy
+                cache.set(f'email_verification_{token}', user.pk, timeout=86400)
+                
+                # Also store in database
+                EmailVerificationToken.objects.create(
+                    user=user,
+                    token=token
+                )
+                
+                # Get the environment and generate verification URL
+                environment = os.environ.get('ENVIRONMENT', 'development')
+                frontend_url = self._get_frontend_url(request, environment)
+                verification_url = f"{frontend_url}/verify-email/{token}"
+                
+                # Send verification email
+                try:
+                    self._send_verification_email(user, verification_url)
+                except Exception as e:
+                    logger.error(f"Error sending verification email: {str(e)}")
+                    # Don't delete the user, just inform them about the email issue
+                    return Response({
+                        "message": "Account created but there was an issue sending the verification email. Please try again later or contact support.",
+                        "email": email,
+                        "verification_required": True
+                    }, status=status.HTTP_201_CREATED)
+                
                 return Response({
-                    "email": ["A user with that email already exists."],
-                    "message": "An account with this email already exists. Please login with your existing account."
-                }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Rest of the signup logic for new users...
-        try:
-            validate_password_strength(password)
-        except ValidationError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            
-        # Create user account (inactive until email is verified)
-        user = serializer.save()
-        user.is_active = False  # Disable until email verification
-        user.save()
-        
-        # Generate verification token
-        token = get_random_string(64)
-        
-        # Store in both cache and database for redundancy
-        try:
-            # Store in cache with 24 hour expiry
-            cache.set(f'email_verification_{token}', user.pk, timeout=86400)
-            
-            # Also store in database
-            EmailVerificationToken.objects.create(
-                user=user,
-                token=token
-            )
-            
-            # Get the environment and generate verification URL
-            environment = os.environ.get('ENVIRONMENT', 'development')
-            frontend_url = self._get_frontend_url(request, environment)
-            verification_url = f"{frontend_url}/verify-email/{token}"
-            
-            # Send verification email
-            self._send_verification_email(user, verification_url)
-            
-            return Response({
-                "message": "Registration successful! Please check your email to verify your account.",
-                "email": email,
-                "verification_required": True,
-                "next_step": "Please verify your email before logging in. Check your inbox for a verification link."
-            }, status=status.HTTP_201_CREATED)
-            
+                    "message": "Registration successful! Please check your email to verify your account.",
+                    "email": email,
+                    "verification_required": True,
+                    "next_step": "Please verify your email before logging in. Check your inbox for a verification link."
+                }, status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                logger.error(f"Error creating user account: {str(e)}")
+                return Response({
+                    "error": "Failed to create account. Please try again later."
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
         except Exception as e:
-            # If email sending fails, delete the user and return error
-            user.delete()
-            logger.error(f"Signup error: {str(e)}")
+            logger.error(f"Unexpected error in signup: {str(e)}")
             return Response({
-                "error": "Failed to create account. Please try again later."
+                "error": "An unexpected error occurred. Please try again later."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     def _get_frontend_url(self, request, environment):
