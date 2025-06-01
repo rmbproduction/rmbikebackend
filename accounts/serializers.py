@@ -1,70 +1,25 @@
 # accounts/serializers.py
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from vehicle.models import VehicleModel, VehicleType, Manufacturer
 from .models import UserProfile, ContactMessage, EmailVerificationToken
 from django.utils import timezone
 from datetime import datetime
+from django.core.exceptions import ValidationError
 import logging
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
-class UserSerializer(serializers.ModelSerializer):
-    is_admin = serializers.BooleanField(read_only=True)
-    is_staff_member = serializers.BooleanField(read_only=True)
-    is_field_staff = serializers.BooleanField(read_only=True)
-    is_customer = serializers.BooleanField(read_only=True)
-    verification_status = serializers.SerializerMethodField()
-    verification_token = EmailVerificationTokenSerializer(read_only=True)
-
-    class Meta:
-        model = User
-        fields = (
-            'username', 
-            'email', 
-            'password',
-            'email_verified',
-            'is_active',
-            'date_joined',
-            'is_admin',
-            'is_staff_member',
-            'is_field_staff',
-            'is_customer',
-            'verification_status',
-            'verification_token'
-        )
-        extra_kwargs = {
-            'password': {'write_only': True},
-            'email': {'required': True},
-            'username': {'required': True},
-            'email_verified': {'read_only': True},
-            'date_joined': {'read_only': True},
-            'is_active': {'read_only': True}
-        }
-
-    def get_verification_status(self, obj):
-        if obj.email_verified:
-            return "verified"
-        
-        token = EmailVerificationToken.objects.filter(user=obj).first()
-        if not token:
-            return "expired"
-            
-        if (timezone.now() - obj.date_joined) > timezone.timedelta(hours=24):
-            return "expired"
-            
-        return "pending"
-
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password']
-        )
-        return user
+def get_tokens_for_user(user):
+    """Generate JWT tokens for user"""
+    refresh = RefreshToken.for_user(user)
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
 
 class EmailVerificationTokenSerializer(serializers.ModelSerializer):
     is_expired = serializers.SerializerMethodField()
@@ -84,6 +39,26 @@ class EmailVerificationTokenSerializer(serializers.ModelSerializer):
         time_elapsed = now - obj.created_at
         hours_remaining = 24 - (time_elapsed.total_seconds() / 3600)
         return max(0, round(hours_remaining, 1))
+
+class UserSerializer(serializers.ModelSerializer):
+    verification_token = EmailVerificationTokenSerializer(read_only=True)
+    is_admin = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'password', 'verification_token', 'email_verified', 'is_admin')
+        extra_kwargs = {
+            'password': {'write_only': True},
+            'email_verified': {'read_only': True}
+        }
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password']
+        )
+        return user
 
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -107,11 +82,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
-            'email', 'username', 'name', 'address', 'profile_photo',
-            'vehicle_name', 'vehicle_type', 'manufacturer',
-            'city', 'state', 'country', 'postal_code', 'phone'
+            'id', 'user', 'email', 'username', 'name', 'phone_number',
+            'address', 'city', 'state', 'postal_code', 'country',
+            'profile_picture', 'bio', 'created_at', 'updated_at',
+            'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
-        read_only_fields = ['email', 'username']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
     def create(self, validated_data):
         # Remove vehicle-related fields as they don't exist in the UserProfile model
@@ -207,16 +183,16 @@ class UserProfileWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
-            'email', 'name', 'username', 'address', 'profile_photo', 
-            'vehicle_name', 'vehicle_type', 'manufacturer', 
-            'city', 'state', 'country', 'postal_code', 'phone'
+            'name', 'phone_number', 'address', 'city',
+            'state', 'postal_code', 'country', 'profile_picture', 'bio',
+            'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
-        read_only_fields = ['email']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
     def validate(self, data):
         """Ensure all required fields are present and vehicle models match manufacturer"""
         # Required field validation
-        required_fields = ['address', 'city', 'state', 'postal_code', 'phone', 
+        required_fields = ['address', 'city', 'state', 'postal_code', 'phone_number', 
                          'vehicle_name', 'vehicle_type', 'manufacturer']
         
         for field in required_fields:
@@ -251,25 +227,8 @@ class ContactMessageSerializer(serializers.ModelSerializer):
     """Serializer for contact messages"""
     class Meta:
         model = ContactMessage
-        fields = [
-            'id', 
-            'name', 
-            'email', 
-            'phone', 
-            'message', 
-            'created_at',
-            'updated_at',
-            'status',
-            'response',
-            'user'
-        ]
-        read_only_fields = [
-            'id', 
-            'created_at', 
-            'updated_at',
-            'status',
-            'response'
-        ]
+        fields = ['id', 'name', 'email', 'phone', 'message', 'created_at']
+        read_only_fields = ['id', 'created_at']
         
     def validate_email(self, value):
         """Validate email"""
@@ -290,44 +249,6 @@ class ContactMessageSerializer(serializers.ModelSerializer):
         if len(value) < 10:
             raise serializers.ValidationError("Message must be at least 10 characters")
         return value
-
-def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)
-
-    # Add custom claims with proper UTC timestamps
-    now = timezone.now()
-    utc_timestamp = int(now.timestamp())
-
-    # Add claims to refresh token
-    refresh['username'] = user.username
-    refresh['email'] = user.email
-    refresh['is_active'] = user.is_active
-    refresh['email_verified'] = user.email_verified
-    refresh['date_joined'] = user.date_joined.isoformat()
-    refresh['iat'] = utc_timestamp
-    refresh['token_type'] = 'refresh'
-
-    # Add claims to access token
-    refresh.access_token['username'] = user.username
-    refresh.access_token['email'] = user.email
-    refresh.access_token['is_active'] = user.is_active
-    refresh.access_token['email_verified'] = user.email_verified
-    refresh.access_token['iat'] = utc_timestamp
-    refresh.access_token['token_type'] = 'access'
-
-    # Log token generation details with UTC timestamps
-    logger.info(f"Generated tokens for user {user.email}", extra={
-        'access_exp': datetime.fromtimestamp(refresh.access_token['exp']).isoformat(),
-        'refresh_exp': datetime.fromtimestamp(refresh['exp']).isoformat(),
-        'iat': datetime.fromtimestamp(utc_timestamp).isoformat(),
-        'user_id': user.id,
-        'utc_now': now.isoformat()
-    })
-
-    return {
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
-    }
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -358,23 +279,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(style={'input_type': 'password'})
+    password = serializers.CharField(write_only=True)
+    remember_me = serializers.BooleanField(required=False, default=False)
 
 class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField(
-        required=True,
-        help_text="Enter your refresh token to logout",
-        error_messages={
-            'required': 'Refresh token is required to log out',
-            'blank': 'Refresh token cannot be blank',
-        },
-        style={
-            'base_template': 'textarea.html',
-            'placeholder': 'Paste your refresh token here',
-            'rows': 3,
-            'cols': 40
-        }
-    )
+    refresh = serializers.CharField()
     
     def validate_refresh(self, value):
         if not value.strip():
@@ -382,26 +291,13 @@ class LogoutSerializer(serializers.Serializer):
         return value
 
 class PasswordResetSerializer(serializers.Serializer):
-    email = serializers.EmailField(
-        required=True,
-        help_text="Enter your registered email address",
-        error_messages={
-            'required': 'Email is required',
-            'invalid': 'Please enter a valid email address'
-        }
-    )
-
-    def validate_email(self, value):
-        try:
-            User.objects.get(email=value)
-            return value
-        except User.DoesNotExist:
-            # We don't want to reveal if the email exists or not
-            return value
+    email = serializers.EmailField()
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    password = serializers.CharField(
-        write_only=True,
-        min_length=8,
-        help_text="Enter your new password (minimum 8 characters)"
-    )
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data['password'] != data['confirm_password']:
+            raise ValidationError("Passwords do not match")
+        return data

@@ -648,9 +648,10 @@ class SignupView(generics.GenericAPIView):
         
     def _send_verification_email(self, user, verification_url):
         """Helper method to send verification email"""
-        send_mail(
-            subject="Verify Your Email - Repair My Bike",
-            message=f"""Thank you for signing up with Repair My Bike!
+        try:
+            send_mail(
+                subject="Verify Your Email - Repair My Bike",
+                message=f"""Thank you for signing up with Repair My Bike!
 
 Please click the link below to verify your email address:
 
@@ -662,10 +663,14 @@ If you did not create an account, please ignore this email.
 
 Best regards,
 The Repair My Bike Team""",
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+            logger.info(f"Verification email sent successfully to {user.email}")
+        except Exception as e:
+            logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
+            raise
 
 class VerifyEmailView(APIView):
     permission_classes = (permissions.AllowAny,)
