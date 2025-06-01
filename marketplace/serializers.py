@@ -168,14 +168,11 @@ class VehicleSerializer(serializers.ModelSerializer):
     def validate_year(self, value):
         if value > timezone.now().year:
             raise serializers.ValidationError("Year cannot be in the future")
-        if value < 1900:
-            raise serializers.ValidationError("Year cannot be before 1900")
         return value
 
     def validate_registration_number(self, value):
         if not value:
             raise serializers.ValidationError("Registration number is required")
-        # Add your registration number format validation here
         return value.upper()
 
     def validate(self, data):
@@ -196,10 +193,6 @@ class VehicleSerializer(serializers.ModelSerializer):
             if Vehicle.objects.filter(registration_number__iexact=data['registration_number']).exists():
                 if self.instance is None or self.instance.registration_number != data['registration_number']:
                     errors['registration_number'] = "This registration number already exists"
-        
-        # Ensure price has a value greater than 0 for vehicles being sold
-        if 'status' in data and data['status'] == 'available' and ('price' not in data or data['price'] <= 0):
-            errors['price'] = "Price must be set for vehicles available for sale"
         
         # Validate engine capacity exists for non-electric vehicles
         if 'fuel_type' in data and data['fuel_type'] != 'electric' and ('engine_capacity' not in data or not data['engine_capacity']):
