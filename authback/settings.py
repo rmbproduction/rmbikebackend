@@ -176,6 +176,8 @@ CORS_ALLOWED_ORIGINS = [
     f"{HOST_PROTOCOL}://{HOST_DOMAIN}",
     "http://localhost:5173",  # Vite dev server
     "http://localhost:3000",  # React dev server
+    "http://127.0.0.1:5173",  # Vite dev server alternative
+    "http://127.0.0.1:3000",  # React dev server alternative
     "https://repairmybike.up.railway.app",
     "https://repairmybike.vercel.app",
     "https://repair-my-bike.vercel.app",
@@ -183,11 +185,19 @@ CORS_ALLOWED_ORIGINS = [
     "https://repairmybike.in",
     "https://www.repairmybike.in",
 ]
+
+# CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
 
-# Only allow all origins in development, not in production
-CORS_ALLOW_ALL_ORIGINS = os.environ.get('ENVIRONMENT', 'development') == 'development'
+# Only allow all origins in development
+if os.environ.get('ENVIRONMENT', 'development') == 'development':
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ORIGIN_ALLOW_ALL = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ORIGIN_ALLOW_ALL = False
 
+# Enhanced CORS Headers
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -196,6 +206,7 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -207,7 +218,16 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
     'access-control-allow-origin',
+    'access-control-allow-headers',
+    'access-control-allow-methods',
+    'access-control-max-age',
+    'access-control-allow-credentials',
 ]
+
+# Additional CORS Settings
+CORS_EXPOSE_HEADERS = ['content-type', 'x-custom-header']
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+CORS_REPLACE_HTTPS_REFERER = True
 
 ROOT_URLCONF = 'authback.urls'
 
