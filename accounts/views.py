@@ -837,10 +837,18 @@ class UserProfileView(APIView):
             logger.info(f"Profile request received for user: {request.user.email}")
             
             # Get or create profile with minimal fields
-            profile, created = UserProfile.objects.get_or_create(
-                user=request.user,
-                defaults={'name': request.user.get_full_name() or request.user.username}
-            )
+            try:
+                profile = UserProfile.objects.get(user=request.user)
+                created = False
+            except UserProfile.DoesNotExist:
+                profile = UserProfile.objects.create(
+                    user=request.user,
+                    name=request.user.get_full_name() or request.user.username,
+                    vehicle_name=None,
+                    vehicle_type=None,
+                    manufacturer=None
+                )
+                created = True
             
             # Log profile retrieval
             logger.info(f"Profile {'created' if created else 'retrieved'} for user: {request.user.email}")

@@ -93,9 +93,9 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
-    vehicle_name = serializers.PrimaryKeyRelatedField(queryset=VehicleModel.objects.all(), required=False)
-    vehicle_type = serializers.PrimaryKeyRelatedField(queryset=VehicleType.objects.all(), required=False)
-    manufacturer = serializers.PrimaryKeyRelatedField(queryset=Manufacturer.objects.all(), required=False)
+    vehicle_name = serializers.IntegerField(required=False, allow_null=True)
+    vehicle_type = serializers.IntegerField(required=False, allow_null=True)
+    manufacturer = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = UserProfile
