@@ -8,9 +8,11 @@ from marketplace.models import SellRequest
 from repairing_service.models import ServiceRequest
 from subscription_plan.models import SubscriptionRequest, VisitSchedule
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 
 User = get_user_model()
 
+@login_required
 @staff_member_required
 def admin_dashboard(request):
     # Get date ranges
@@ -74,6 +76,7 @@ def admin_dashboard(request):
 
     return render(request, 'admin_panel/dashboard.html', context)
 
+@login_required
 @staff_member_required
 def service_analytics(request):
     # Service category distribution
@@ -97,6 +100,7 @@ def service_analytics(request):
 
     return render(request, 'admin_panel/service_analytics.html', context)
 
+@login_required
 @staff_member_required
 def subscription_analytics(request):
     # Plan distribution
