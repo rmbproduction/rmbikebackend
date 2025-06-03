@@ -93,9 +93,11 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
-    vehicle_name = serializers.IntegerField(required=False, allow_null=True)
-    vehicle_type = serializers.IntegerField(required=False, allow_null=True)
-    manufacturer = serializers.IntegerField(required=False, allow_null=True)
+    vehicle_model = serializers.PrimaryKeyRelatedField(
+        queryset=VehicleModel.objects.all(),
+        required=False,
+        allow_null=True
+    )
     city = serializers.CharField(required=False, allow_null=True)
     state = serializers.CharField(required=False, allow_null=True)
     postal_code = serializers.CharField(required=False, allow_null=True)
@@ -108,7 +110,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'email', 'username', 'name', 'phone',
             'address', 'city', 'state', 'postal_code', 'country',
-            'profile_photo', 'vehicle_name', 'vehicle_type', 'manufacturer'
+            'profile_photo', 'vehicle_model'
         ]
         read_only_fields = ['id', 'user']
 
@@ -143,74 +145,35 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return data
 
 class UserProfileWriteSerializer(serializers.ModelSerializer):
-    vehicle_name = serializers.PrimaryKeyRelatedField(
+    vehicle_model = serializers.PrimaryKeyRelatedField(
         queryset=VehicleModel.objects.all(),
-        required=True,
+        required=False,
+        allow_null=True,
         error_messages={
-            'required': 'Vehicle model is required.',
             'does_not_exist': 'Invalid vehicle model selected.',
             'null': 'Vehicle model cannot be null.'
-        }
-    )
-    vehicle_type = serializers.PrimaryKeyRelatedField(
-        queryset=VehicleType.objects.all(),
-        required=True,
-        error_messages={
-            'required': 'Vehicle type is required.',
-            'does_not_exist': 'Invalid vehicle type selected.',
-            'null': 'Vehicle type cannot be null.'
-        }
-    )
-    manufacturer = serializers.PrimaryKeyRelatedField(
-        queryset=Manufacturer.objects.all(),
-        required=True,
-        error_messages={
-            'required': 'Manufacturer is required.',
-            'does_not_exist': 'Invalid manufacturer selected.',
-            'null': 'Manufacturer cannot be null.'
         }
     )
 
     class Meta:
         model = UserProfile
         fields = [
-            'name', 'phone_number', 'address', 'city',
-            'state', 'postal_code', 'country', 'profile_picture', 'bio',
-            'vehicle_name', 'vehicle_type', 'manufacturer'
+            'name', 'phone', 'address', 'city',
+            'state', 'postal_code', 'country', 'profile_photo',
+            'vehicle_model'
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user']
 
     def validate(self, data):
-        """Ensure all required fields are present and vehicle models match manufacturer"""
+        """Ensure all required fields are present"""
         # Required field validation
-        required_fields = ['address', 'city', 'state', 'postal_code', 'phone_number', 
-                         'vehicle_name', 'vehicle_type', 'manufacturer']
+        required_fields = ['address', 'city', 'state', 'postal_code', 'phone']
         
         for field in required_fields:
             if field not in data:
                 raise serializers.ValidationError({field: f"{field.replace('_', ' ').title()} is required"})
             if data[field] is None:
                 raise serializers.ValidationError({field: f"{field.replace('_', ' ').title()} cannot be null"})
-        
-        # Check vehicle model belongs to selected manufacturer
-        if 'vehicle_name' in data and 'manufacturer' in data:
-            vehicle_model = data['vehicle_name']
-            manufacturer = data['manufacturer']
-            
-            if vehicle_model.manufacturer.id != manufacturer.id:
-                raise serializers.ValidationError({
-                    'vehicle_name': f"Selected vehicle model doesn't belong to {manufacturer.name}"
-                })
-        
-        # Check vehicle model type matches selected type
-        if 'vehicle_name' in data and 'vehicle_type' in data:
-            vehicle_model = data['vehicle_name']
-            vehicle_type = data['vehicle_type']
-            
-            if vehicle_model.vehicle_type.id != vehicle_type.id:
-                raise serializers.ValidationError({
-                    'vehicle_type': f"Selected vehicle type doesn't match the vehicle model's type"
-                })
         
         return data
 

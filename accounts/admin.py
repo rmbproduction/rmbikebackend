@@ -8,9 +8,9 @@ from .models import User, UserProfile, EmailVerificationToken, ContactMessage
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('get_email', 'name', 'get_username', 'city', 'state', 'country', 'phone')
-    search_fields = ('user__email', 'name', 'user__username', 'phone')
-    list_filter = ('country', 'state')
+    list_display = ('get_email', 'name', 'get_username', 'city', 'state', 'country', 'phone', 'vehicle_model')
+    search_fields = ('user__email', 'name', 'user__username', 'phone', 'vehicle_model__name')
+    list_filter = ('country', 'state', 'vehicle_model')
     readonly_fields = ('get_email',)
 
     fieldsets = (
@@ -19,6 +19,9 @@ class UserProfileAdmin(admin.ModelAdmin):
         }),
         ('Address Information', {
             'fields': ('address', 'city', 'state', 'country', 'postal_code')
+        }),
+        ('Vehicle Information', {
+            'fields': ('vehicle_model',)
         }),
     )
 

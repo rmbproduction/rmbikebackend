@@ -853,17 +853,9 @@ class UserProfileView(APIView):
             # Log profile retrieval
             logger.info(f"Profile {'created' if created else 'retrieved'} for user: {request.user.email}")
             
-            # Serialize with only the fields we know exist
+            # Serialize profile
             serializer = UserProfileSerializer(profile)
-            data = serializer.data
-            
-            # Remove any problematic fields if they exist
-            if 'preferredLocation' in data:
-                data.pop('preferredLocation')
-            if 'preferred_location' in data:
-                data.pop('preferred_location')
-                
-            return Response(data)
+            return Response(serializer.data)
             
         except Exception as e:
             # Log the full error with traceback
@@ -884,10 +876,6 @@ class UserProfileView(APIView):
             
             # Clean up request data
             data = request.data.copy()
-            if 'preferredLocation' in data:
-                data.pop('preferredLocation')
-            if 'preferred_location' in data:
-                data.pop('preferred_location')
             
             # Handle different content types
             if request.content_type and 'application/json' in request.content_type:
@@ -897,11 +885,6 @@ class UserProfileView(APIView):
                 if 'data' in cleaned_data and isinstance(cleaned_data['data'], str):
                     try:
                         json_data = json.loads(cleaned_data['data'])
-                        # Remove problematic fields from JSON data
-                        if 'preferredLocation' in json_data:
-                            json_data.pop('preferredLocation')
-                        if 'preferred_location' in json_data:
-                            json_data.pop('preferred_location')
                         # Merge cleaned JSON data
                         for key, value in json_data.items():
                             if key not in cleaned_data:
@@ -946,10 +929,6 @@ class UserProfileView(APIView):
             
             # Clean up request data
             data = request.data.copy()
-            if 'preferredLocation' in data:
-                data.pop('preferredLocation')
-            if 'preferred_location' in data:
-                data.pop('preferred_location')
             
             # Handle different content types
             if request.content_type and 'application/json' in request.content_type:
@@ -959,11 +938,6 @@ class UserProfileView(APIView):
                 if 'data' in cleaned_data and isinstance(cleaned_data['data'], str):
                     try:
                         json_data = json.loads(cleaned_data['data'])
-                        # Remove problematic fields from JSON data
-                        if 'preferredLocation' in json_data:
-                            json_data.pop('preferredLocation')
-                        if 'preferred_location' in json_data:
-                            json_data.pop('preferred_location')
                         # Merge cleaned JSON data
                         for key, value in json_data.items():
                             cleaned_data[key] = value

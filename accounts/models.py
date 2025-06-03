@@ -3,7 +3,7 @@ from django.db import models
 from django.utils.crypto import get_random_string
 from django.utils import timezone
 from cloudinary.models import CloudinaryField
-
+from vehicle.models import VehicleModel
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
@@ -77,10 +77,7 @@ class UserProfile(models.Model):
     postal_code = models.CharField(max_length=10, blank=True, null=True)
     phone = models.CharField(max_length=15, blank=True, null=True)
     
-    # Vehicle information - using IntegerField to match current database structure
-    vehicle_name = models.IntegerField(db_column='vehicle_name', null=True, blank=True)
-    vehicle_type = models.IntegerField(db_column='vehicle_type', null=True, blank=True)
-    manufacturer = models.IntegerField(db_column='manufacturer', null=True, blank=True)
+    vehicle_model = models.ForeignKey(VehicleModel, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username}'s Profile"
