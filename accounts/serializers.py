@@ -283,30 +283,67 @@ class UserSignupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password')
+        fields = ('username', 'email', 'password', 'account_status')
         extra_kwargs = {
-            'password': {'write_only': True}
+            'password': {'write_only': True},
+            'account_status': {'read_only': True}  # Make it read-only since we set it in create
         }
 
     def validate_email(self, value):
         """
-        Validate email format and uniqueness
+        Validate email format and uniqueness.
+        If an unverified user exists with this email and is older than 24 hours,
+        delete that user and allow reuse of the email.
         """
-        # Convert to lowercase
         value = value.lower()
         
-        # Check if email already exists
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
+        # Check if email exists
+        existing_user = User.objects.filter(email=value).first()
+        if existing_user:
+            # If user exists but is unverified
+            if not existing_user.email_verified:
+                # Check if the unverified account is older than 24 hours
+                time_threshold = timezone.now() - timezone.timedelta(hours=24)
+                if existing_user.date_joined < time_threshold:
+                    # Delete the old unverified account
+                    existing_user.delete()
+                    return value
+                else:
+                    # Account is too new, must wait
+                    time_left = 24 - ((timezone.now() - existing_user.date_joined).total_seconds() / 3600)
+                    raise serializers.ValidationError(
+                        f"This email is already registered but unverified. Please verify the existing account or wait {int(time_left)} hours to register again."
+                    )
+            else:
+                raise serializers.ValidationError("A verified user with this email already exists.")
         
         return value
 
     def validate_username(self, value):
         """
-        Validate username uniqueness and format
+        Validate username uniqueness and format.
+        If an unverified user exists with this username and is older than 24 hours,
+        delete that user and allow reuse of the username.
         """
-        if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("A user with this username already exists.")
+        # Check if username exists
+        existing_user = User.objects.filter(username=value).first()
+        if existing_user:
+            # If user exists but is unverified
+            if not existing_user.email_verified:
+                # Check if the unverified account is older than 24 hours
+                time_threshold = timezone.now() - timezone.timedelta(hours=24)
+                if existing_user.date_joined < time_threshold:
+                    # Delete the old unverified account
+                    existing_user.delete()
+                    return value
+                else:
+                    # Account is too new, must wait
+                    time_left = 24 - ((timezone.now() - existing_user.date_joined).total_seconds() / 3600)
+                    raise serializers.ValidationError(
+                        f"This username is already registered but unverified. Please wait {int(time_left)} hours to register again."
+                    )
+            else:
+                raise serializers.ValidationError("This username is already taken.")
         
         # Add any additional username validation rules here
         if len(value) < 3:
@@ -343,6 +380,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'].lower(),
-            password=validated_data['password']
+            password=validated_data['password'],
+            account_status='unverified'  # Explicitly set account_status
         )
         return user

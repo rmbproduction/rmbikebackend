@@ -6,8 +6,19 @@ from cloudinary.models import CloudinaryField
 
 
 class User(AbstractUser):
+    # Account Status Choices
+    STATUS_CHOICES = (
+        ('unverified', 'Unverified'),
+        ('active', 'Active'),
+        ('suspended', 'Suspended'),
+        ('deleted', 'Deleted')
+    )
+
     email = models.EmailField(unique=True)
     email_verified = models.BooleanField(default=False)
+    account_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unverified')
+    verification_attempts = models.IntegerField(default=0)
+    last_verification_sent = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -29,6 +40,8 @@ class User(AbstractUser):
             if self.email == 'admin@repairmybike.in':
                 self.is_staff = True
                 self.is_superuser = True
+                self.account_status = 'active'
+                self.email_verified = True
             elif self.email.endswith('@field.repairmybike.in'):
                 self.is_staff = False  # Field staff are not regular staff
             elif self.email.endswith('@repairmybike.in'):
@@ -50,6 +63,26 @@ class User(AbstractUser):
     @property
     def is_customer(self):
         return not (self.is_admin or self.is_staff_member or self.is_field_staff)
+
+    def can_request_verification(self):
+        """Check if user can request a new verification email"""
+        if not self.last_verification_sent:
+            return True
+        
+        # Allow 3 attempts per hour
+        time_since_last = timezone.now() - self.last_verification_sent
+        if time_since_last.total_seconds() < 3600:  # 1 hour
+            return self.verification_attempts < 3
+        
+        # Reset attempts after 1 hour
+        self.verification_attempts = 0
+        return True
+
+    def increment_verification_attempt(self):
+        """Increment the verification attempts counter"""
+        self.verification_attempts += 1
+        self.last_verification_sent = timezone.now()
+        self.save()
 
 class EmailVerificationToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
