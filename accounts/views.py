@@ -503,9 +503,7 @@ class SignupView(generics.GenericAPIView):
     def _send_verification_email(self, user, verification_url):
         """Helper method to send verification email"""
         try:
-            send_mail(
-                subject="Verify Your Email - Repair My Bike",
-                message=f"""Thank you for signing up with Repair My Bike!
+            email_content = f"""Thank you for signing up with Repair My Bike!
 
 Please click the link below to verify your email address:
 
@@ -516,15 +514,18 @@ This link will expire in 24 hours.
 If you did not create an account, please ignore this email.
 
 Best regards,
-The Repair My Bike Team""",
+The Repair My Bike Team"""
+
+            send_mail(
+                subject="Verify Your Email - Repair My Bike",
+                message=email_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
-                fail_silently=True,  # Set to True to prevent email errors from breaking signup
+                fail_silently=False
             )
-            logger.info(f"Verification email sent successfully to {user.email}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
+            logger.error(f"Failed to send verification email: {str(e)}")
             return False
 
     @method_decorator(csrf_exempt)
