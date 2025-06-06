@@ -53,6 +53,7 @@ urlpatterns = [
     path('api/cart/', include('cart.urls')),
     path('test-cloudinary/', cloudinary_test, name='test-cloudinary'),
     path('', RedirectView.as_view(url='/admin/')),
+    path('grappelli/', include('grappelli.urls')),
 ]
 
 if settings.DEBUG:
