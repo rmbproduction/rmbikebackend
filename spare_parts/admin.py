@@ -1,12 +1,6 @@
 from django.contrib import admin
 from .models import SparePart, PartCategory, PartReview
 
-# Register the models
-admin.site.register(PartCategory)
-admin.site.register(SparePart)
-admin.site.register(PartReview)
-
-# # Admin customization classes
 class PartCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'parent', 'is_active', 'created_at')
     list_filter = ('is_active', 'parent', 'created_at')
