@@ -492,12 +492,60 @@ class GoogleCallbackView(APIView):
 class SignUpView(APIView):
     def post(self, request):
         try:
+            email = request.data.get('email', '').lower()
+            username = request.data.get('username', '')
+
+            # Check if user exists
+            existing_user = User.objects.filter(email=email).first()
+            
+            if existing_user:
+                if existing_user.email_verified:
+                    return Response({
+                        'error': 'A verified user with this email already exists.',
+                        'verified': True
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    # User exists but not verified - check if we can resend verification
+                    if existing_user.can_request_verification():
+                        # Delete old tokens
+                        EmailVerificationToken.objects.filter(user=existing_user).delete()
+                        
+                        # Generate new token and send verification email
+                        token = EmailVerificationToken.objects.create(user=existing_user)
+                        verification_url = f"{settings.FRONTEND_URL}/verify-email/{token.token}"
+                        
+                        try:
+                            from .utils import send_verification_email
+                            send_verification_email(existing_user.email, verification_url)
+                            existing_user.increment_verification_attempt()
+                            
+                            return Response({
+                                'message': 'This email is already registered but not verified. A new verification email has been sent.',
+                                'email': existing_user.email,
+                                'verified': False,
+                                'verification_sent': True
+                            }, status=status.HTTP_200_OK)
+                        except Exception as e:
+                            logger.error(f"Failed to send verification email: {str(e)}")
+                            return Response({
+                                'error': 'Failed to send verification email. Please try again later.',
+                                'details': str(e) if settings.DEBUG else None
+                            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    else:
+                        # Too many attempts
+                        time_to_wait = 60 - ((timezone.now() - existing_user.last_verification_sent).total_seconds() / 60)
+                        return Response({
+                            'error': f'Too many verification attempts. Please wait {int(time_to_wait)} minutes before requesting another verification email.',
+                            'verified': False,
+                            'retry_after': int(time_to_wait)
+                        }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+            # No existing user - proceed with new signup
             serializer = UserSignupSerializer(data=request.data)
             if not serializer.is_valid():
-                return Response(
-                    {'error': serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({
+                    'error': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             user = serializer.save()
             user.is_active = False  # User starts inactive
@@ -510,6 +558,7 @@ class SignUpView(APIView):
             try:
                 # Send verification email
                 verification_url = f"{settings.FRONTEND_URL}/verify-email/{token.token}"
+                from .utils import send_verification_email
                 send_verification_email(user.email, verification_url)
                 user.increment_verification_attempt()
                 
@@ -517,24 +566,27 @@ class SignUpView(APIView):
                     'message': 'Registration successful. Please check your email to verify your account.',
                     'email': user.email,
                     'username': user.username,
-                    'status': user.account_status
+                    'status': user.account_status,
+                    'verified': False,
+                    'verification_sent': True
                 }, status=status.HTTP_201_CREATED)
 
             except Exception as e:
-                # Log the error but don't delete the user
                 logger.error(f"Failed to send verification email: {str(e)}")
                 return Response({
-                    'message': 'Account created but verification email failed to send. Please request a new verification email.',
+                    'message': 'Account created but verification email failed to send. Please use the resend verification endpoint.',
                     'email': user.email,
-                    'status': user.account_status
+                    'status': user.account_status,
+                    'verified': False,
+                    'verification_sent': False
                 }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             logger.error(f"Registration error: {str(e)}")
-            return Response(
-                {'error': 'Registration failed. Please try again.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({
+                'error': 'Registration failed. Please try again.',
+                'details': str(e) if settings.DEBUG else None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ResendVerificationView(APIView):
     def post(self, request):
