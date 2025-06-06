@@ -275,3 +275,74 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if data['password'] != data['confirm_password']:
             raise ValidationError("Passwords do not match")
         return data
+
+class UserSignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
+    email = serializers.EmailField(required=True)
+    username = serializers.CharField(min_length=3, required=True)
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password')
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+    def validate_email(self, value):
+        """
+        Validate email format and uniqueness
+        """
+        # Convert to lowercase
+        value = value.lower()
+        
+        # Check if email already exists
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        
+        return value
+
+    def validate_username(self, value):
+        """
+        Validate username uniqueness and format
+        """
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
+        
+        # Add any additional username validation rules here
+        if len(value) < 3:
+            raise serializers.ValidationError("Username must be at least 3 characters long.")
+        
+        return value
+
+    def validate_password(self, value):
+        """
+        Validate password strength
+        """
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        
+        if not any(char.isupper() for char in value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        
+        if not any(char.islower() for char in value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+        
+        if not any(char.isdigit() for char in value):
+            raise serializers.ValidationError("Password must contain at least one number.")
+        
+        if not any(not char.isalnum() for char in value):
+            raise serializers.ValidationError("Password must contain at least one special character.")
+        
+        return value
+
+    def create(self, validated_data):
+        """
+        Create and return a new user instance
+        """
+        # Create user with encrypted password
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'].lower(),
+            password=validated_data['password']
+        )
+        return user

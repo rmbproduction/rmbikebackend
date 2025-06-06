@@ -37,7 +37,8 @@ from .serializers import (
     UserProfileSerializer,
     ContactMessageSerializer,
     get_tokens_for_user,
-    UserProfileWriteSerializer
+    UserProfileWriteSerializer,
+    UserSignupSerializer
 )
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Q
@@ -488,248 +489,139 @@ class GoogleCallbackView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class SignupView(generics.GenericAPIView):
-    permission_classes = (permissions.AllowAny,)
-    serializer_class = UserSerializer
-    renderer_classes = [JSONRenderer, BrowsableAPIRenderer]
-    parser_classes = (JSONParser,)
-
-    def _get_frontend_url(self, request):
-        """Helper method to determine frontend URL"""
-        if settings.ENVIRONMENT == 'production':
-            return 'https://repairmybike.in'
-        return settings.FRONTEND_URL
-
-    def _send_verification_email(self, user, verification_url):
-        """Helper method to send verification email"""
-        try:
-            email_content = f"""Thank you for signing up with Repair My Bike!
-
-Please click the link below to verify your email address:
-
-{verification_url}
-
-This link will expire in 24 hours.
-
-If you did not create an account, please ignore this email.
-
-Best regards,
-The Repair My Bike Team"""
-
-            # Log email settings before sending
-            logger.info(f"Attempting to send email with settings:")
-            logger.info(f"EMAIL_HOST: {settings.EMAIL_HOST}")
-            logger.info(f"EMAIL_PORT: {settings.EMAIL_PORT}")
-            logger.info(f"EMAIL_USE_SSL: {settings.EMAIL_USE_SSL}")
-            logger.info(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
-            logger.info(f"FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}")
-            logger.info(f"TO_EMAIL: {user.email}")
-
-            send_mail(
-                subject="Verify Your Email - Repair My Bike",
-                message=email_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False
-            )
-            logger.info(f"Email sent successfully to {user.email}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to send verification email: {str(e)}")
-            logger.error(f"Error type: {type(e).__name__}")
-            logger.error(f"Error details:", exc_info=True)
-            return False
-
-    @method_decorator(csrf_exempt)
-    @method_decorator(ratelimit(key='ip', rate='20/h', method=['POST']))
+class SignUpView(APIView):
     def post(self, request):
         try:
-            if getattr(request, 'limited', False):
-                return Response({
-                    "error": "Too many signup attempts. Please try again later.",
-                    "detail": "Rate limit exceeded"
-                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            serializer = UserSignupSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'error': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            serializer = self.get_serializer(data=request.data)
-            
-            if serializer.is_valid():
-                try:
-                    user = serializer.save()
-                    user.is_active = False  # Disable until email verification
-                    user.save()
-                    
-                    # Generate verification token
-                    token = get_random_string(64)
-                    
-                    # Store in both cache and database for redundancy
-                    cache.set(f'email_verification_{token}', user.pk, timeout=86400)
-                    
-                    # Also store in database
-                    verification_token = EmailVerificationToken.objects.create(
-                        user=user,
-                        token=token
-                    )
-                    
-                    # Get frontend URL and generate verification URL
-                    frontend_url = self._get_frontend_url(request)
-                    verification_url = f"{frontend_url}/verify-email/{token}"
-                    
-                    # Send verification email
-                    email_sent = self._send_verification_email(user, verification_url)
-                    
-                    if not email_sent:
-                        # Don't delete the user, just inform them to contact support
-                        return Response({
-                            "message": "Account created but there was an issue sending the verification email.",
-                            "email": user.email,
-                            "verification_required": True,
-                            "next_step": "Please contact support to verify your email.",
-                            "support_email": settings.ADMIN_EMAIL
-                        }, status=status.HTTP_201_CREATED)
-                    
-                    return Response({
-                        "message": "Registration successful! Please check your email to verify your account.",
-                        "email": user.email,
-                        "verification_required": True,
-                        "next_step": "Please check your email for verification instructions."
-                    }, status=status.HTTP_201_CREATED)
-                    
-                except Exception as e:
-                    logger.error(f"Registration error: {str(e)}", exc_info=True)
-                    return Response({
-                        "error": "Registration failed. Please try again.",
-                        "details": str(e) if settings.DEBUG else "An unexpected error occurred."
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-        except Exception as e:
-            logger.error(f"Unexpected error in signup: {str(e)}")
-            return Response({
-                "error": "An unexpected error occurred. Please try again later."
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            user = serializer.save()
+            user.is_active = False  # User starts inactive
+            user.account_status = 'unverified'
+            user.save()
 
-class VerifyEmailView(APIView):
-    permission_classes = (permissions.AllowAny,)
-
-    def get(self, request, token):
-        try:
-            # Try to get user_id from cache first
-            user_id = cache.get(f'email_verification_{token}')
-            
-            if not user_id:
-                # If not in cache, check if token exists in database
-                verification_token = EmailVerificationToken.objects.filter(
-                    token=token,
-                    created_at__gte=timezone.now() - timezone.timedelta(hours=24)
-                ).first()
-                
-                if verification_token:
-                    user_id = verification_token.user.id
-                else:
-                    return Response({
-                        "error": "Invalid or expired verification link",
-                        "status": "error"
-                    }, status=status.HTTP_400_BAD_REQUEST)
+            # Generate and save verification token
+            token = EmailVerificationToken.objects.create(user=user)
             
             try:
-                user = User.objects.get(pk=user_id)
-                if not user.is_active:
-                    user.is_active = True
-                    user.email_verified = True
-                    user.save()
-                    
-                    try:
-                        # Try to clear verification token from cache
-                        cache.delete(f'email_verification_{token}')
-                        # Also delete from database if it exists
-                        EmailVerificationToken.objects.filter(token=token).delete()
-                    except Exception as e:
-                        logger.warning(f"Failed to delete verification token: {str(e)}")
-                    
-                    logger.info(f"Email verified for user: {user.email}")
-                    
-                    # Get the environment
-                    environment = os.environ.get('ENVIRONMENT', 'development')
-                    
-                    # Generate login URL
-                    # For production, always use the production domain
-                    if environment == 'production':
-                        frontend_url = 'https://repairmybike.in'
-                    else:
-                        # For development, try to determine frontend URL from headers
-                        referer = request.headers.get('Referer')
-                        if referer:
-                            # Extract domain from referer (http://domain or https://domain)
-                            from urllib.parse import urlparse
-                            parsed_uri = urlparse(referer)
-                            frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-                        else:
-                            # Fallback to settings FRONTEND_URL
-                            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
-                    
-                    # Safety check to prevent localhost URLs in production
-                    if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
-                        frontend_url = 'https://repairmybike.in'
-                    
-                    login_url = f"{frontend_url}/login-signup"
-                    
-                    return Response({
-                        "message": "Email verified successfully. You can now log in with your credentials.",
-                        "status": "success",
-                        "verified": True,
-                        "user": {
-                            "email": user.email,
-                        },
-                        "redirect_url": login_url
-                    }, status=status.HTTP_200_OK)
-                
-                # Get the environment
-                environment = os.environ.get('ENVIRONMENT', 'development')
-                
-                # Generate login URL using same logic as above
-                if environment == 'production':
-                    frontend_url = 'https://repairmybike.in'
-                else:
-                    # For development, try to determine frontend URL from headers
-                    referer = request.headers.get('Referer')
-                    if referer:
-                        # Extract domain from referer (http://domain or https://domain)
-                        from urllib.parse import urlparse
-                        parsed_uri = urlparse(referer)
-                        frontend_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-                    else:
-                        # Fallback to settings FRONTEND_URL
-                        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://repairmybike.in')
-                
-                # Safety check to prevent localhost URLs in production
-                if environment == 'production' and ('localhost' in frontend_url or '127.0.0.1' in frontend_url):
-                    frontend_url = 'https://repairmybike.in'
-                
-                login_url = f"{frontend_url}/login-signup"
+                # Send verification email
+                verification_url = f"{settings.FRONTEND_URL}/verify-email/{token.token}"
+                send_verification_email(user.email, verification_url)
+                user.increment_verification_attempt()
                 
                 return Response({
-                    "message": "Email already verified. You can log in with your credentials.",
-                    "status": "success",
-                    "verified": True,
-                    "user": {
-                        "email": user.email,
-                    },
-                    "redirect_url": login_url
-                }, status=status.HTTP_200_OK)
-                
-            except User.DoesNotExist:
-                logger.error(f"Verification failed: User not found for token {token}")
+                    'message': 'Registration successful. Please check your email to verify your account.',
+                    'email': user.email,
+                    'username': user.username,
+                    'status': user.account_status
+                }, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                # Log the error but don't delete the user
+                logger.error(f"Failed to send verification email: {str(e)}")
                 return Response({
-                    "error": "User not found",
-                    "status": "error"
-                }, status=status.HTTP_404_NOT_FOUND)
-                
+                    'message': 'Account created but verification email failed to send. Please request a new verification email.',
+                    'email': user.email,
+                    'status': user.account_status
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Registration error: {str(e)}")
+            return Response(
+                {'error': 'Registration failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class ResendVerificationView(APIView):
+    def post(self, request):
+        try:
+            email = request.data.get('email')
+            if not email:
+                return Response(
+                    {'error': 'Email is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user = User.objects.filter(email=email).first()
+            if not user:
+                return Response(
+                    {'error': 'No account found with this email'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            if user.email_verified:
+                return Response(
+                    {'message': 'Email is already verified'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not user.can_request_verification():
+                time_to_wait = 60 - ((timezone.now() - user.last_verification_sent).total_seconds() / 60)
+                return Response({
+                    'error': f'Too many verification attempts. Please wait {int(time_to_wait)} minutes before trying again.'
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+            # Delete any existing tokens
+            EmailVerificationToken.objects.filter(user=user).delete()
+            
+            # Create new token and send email
+            token = EmailVerificationToken.objects.create(user=user)
+            verification_url = f"{settings.FRONTEND_URL}/verify-email/{token.token}"
+            
+            send_verification_email(user.email, verification_url)
+            user.increment_verification_attempt()
+
+            return Response({
+                'message': 'Verification email sent successfully',
+                'email': user.email
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Resend verification error: {str(e)}")
+            return Response(
+                {'error': 'Failed to resend verification email'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class VerifyEmailView(APIView):
+    def get(self, request, token):
+        try:
+            verification_token = EmailVerificationToken.objects.get(token=token)
+            
+            # Check if token is expired (24 hours)
+            if timezone.now() > verification_token.created_at + timezone.timedelta(hours=24):
+                verification_token.delete()
+                return Response({
+                    'error': 'Verification link has expired. Please request a new one.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            user = verification_token.user
+            user.email_verified = True
+            user.is_active = True
+            user.account_status = 'active'
+            user.save()
+
+            # Clean up used token
+            verification_token.delete()
+
+            return Response({
+                'message': 'Email verified successfully',
+                'email': user.email,
+                'status': user.account_status
+            }, status=status.HTTP_200_OK)
+
+        except EmailVerificationToken.DoesNotExist:
+            return Response({
+                'error': 'Invalid verification link'
+            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Email verification error: {str(e)}")
             return Response({
-                "error": "An error occurred during email verification",
-                "status": "error"
+                'error': 'Verification failed'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LogoutView(APIView):
