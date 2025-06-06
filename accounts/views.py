@@ -511,7 +511,7 @@ class SignUpView(APIView):
                         EmailVerificationToken.objects.filter(user=existing_user).delete()
                         
                         # Generate new token and send verification email
-                        token = EmailVerificationToken.objects.create(user=existing_user)
+                        token = EmailVerificationToken.generate_token(existing_user)
                         verification_url = f"{settings.FRONTEND_URL}/verify-email/{token.token}"
                         
                         try:
@@ -549,14 +549,13 @@ class SignUpView(APIView):
 
             user = serializer.save()
             user.is_active = False  # User starts inactive
-            user.account_status = 'unverified'
             user.save()
 
             # Generate and save verification token
-            token = EmailVerificationToken.objects.create(user=user)
+            token = EmailVerificationToken.generate_token(user)
             
             try:
-                # Send verification email
+                # Send verification email with complete URL
                 verification_url = f"{settings.FRONTEND_URL}/verify-email/{token.token}"
                 from .utils import send_verification_email
                 send_verification_email(user.email, verification_url)

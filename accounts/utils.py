@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 def send_verification_email(to_email, verification_url):
     """
     Send verification email to user
+    Args:
+        to_email: User's email address
+        verification_url: Complete verification URL including token
     """
     try:
         subject = "Verify Your Email - Repair My Bike"
@@ -29,12 +32,16 @@ This link will expire in 24 hours.
 
 If you did not create an account, please ignore this email.
 
+Need help? Contact us at support@repairmybike.in
+
 Best regards,
 The Repair My Bike Team"""
 
-        # Log email settings before sending
-        logger.info(f"Sending verification email to: {to_email}")
-        logger.info(f"Using SMTP settings: {settings.EMAIL_HOST}:{settings.EMAIL_PORT}")
+        # Log email settings and URL (but not in production)
+        if settings.DEBUG:
+            logger.info(f"Sending verification email to: {to_email}")
+            logger.info(f"Verification URL: {verification_url}")
+            logger.info(f"Using SMTP settings: {settings.EMAIL_HOST}:{settings.EMAIL_PORT}")
 
         send_mail(
             subject=subject,
