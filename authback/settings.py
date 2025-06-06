@@ -138,6 +138,8 @@ INSTALLED_APPS = [
     'vehicle',
     'repairing_service',
     'subscription_plan',
+    'spare_parts',
+    'cart',
     # Add Cloudinary app only
     'cloudinary',
     'cloudinary_storage',

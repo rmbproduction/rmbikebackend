@@ -90,12 +90,26 @@ class EmailVerificationToken(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def is_valid(self):
+        """Check if token is still valid (within 24 hours)"""
         return self.created_at >= timezone.now() - timezone.timedelta(hours=24)
 
     @classmethod
     def generate_token(cls, user):
-        token = get_random_string(64)
+        """Generate a new verification token for the user"""
+        # Delete any existing tokens for this user
+        cls.objects.filter(user=user).delete()
+        
+        # Generate a unique token
+        while True:
+            token = get_random_string(64)
+            if not cls.objects.filter(token=token).exists():
+                break
+        
+        # Create and return the new token
         return cls.objects.create(user=user, token=token)
+
+    def __str__(self):
+        return f"Verification token for {self.user.email}"
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
