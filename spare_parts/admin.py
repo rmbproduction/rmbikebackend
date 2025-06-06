@@ -1,7 +1,12 @@
 from django.contrib import admin
 from .models import SparePart, PartCategory, PartReview
 
-@admin.register(PartCategory)
+# Register the models
+admin.site.register(PartCategory)
+admin.site.register(SparePart)
+admin.site.register(PartReview)
+
+# Admin customization classes
 class PartCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'parent', 'is_active', 'created_at')
     list_filter = ('is_active', 'parent', 'created_at')
@@ -10,7 +15,6 @@ class PartCategoryAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
     ordering = ('name',)
 
-@admin.register(SparePart)
 class SparePartAdmin(admin.ModelAdmin):
     list_display = ('name', 'part_number', 'category', 'price', 'stock_quantity', 'availability_status', 'is_active')
     list_filter = (
@@ -51,10 +55,18 @@ class SparePartAdmin(admin.ModelAdmin):
         })
     )
 
-@admin.register(PartReview)
 class PartReviewAdmin(admin.ModelAdmin):
     list_display = ('part', 'user', 'rating', 'purchase_verified', 'created_at')
     list_filter = ('rating', 'purchase_verified', 'created_at')
     search_fields = ('part__name', 'user__username', 'review_text')
     readonly_fields = ('created_at', 'updated_at')
-    raw_id_fields = ('part', 'user') 
+    raw_id_fields = ('part', 'user')
+
+# Register the models with their admin classes
+admin.site.unregister(PartCategory)
+admin.site.unregister(SparePart)
+admin.site.unregister(PartReview)
+
+admin.site.register(PartCategory, PartCategoryAdmin)
+admin.site.register(SparePart, SparePartAdmin)
+admin.site.register(PartReview, PartReviewAdmin) 
