@@ -494,9 +494,9 @@ class SignupView(generics.GenericAPIView):
     renderer_classes = [JSONRenderer, BrowsableAPIRenderer]
     parser_classes = (JSONParser,)
 
-    def _get_frontend_url(self, request, environment):
+    def _get_frontend_url(self, request):
         """Helper method to determine frontend URL"""
-        if environment == 'production':
+        if settings.ENVIRONMENT == 'production':
             return 'https://repairmybike.in'
         return settings.FRONTEND_URL
 
@@ -570,8 +570,8 @@ The Repair My Bike Team"""
                         token=token
                     )
                     
-                    # Get the environment and generate verification URL
-                    frontend_url = self._get_frontend_url(request, ENVIRONMENT)
+                    # Get frontend URL and generate verification URL
+                    frontend_url = self._get_frontend_url(request)
                     verification_url = f"{frontend_url}/verify-email/{token}"
                     
                     # Send verification email
