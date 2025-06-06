@@ -1,1 +1,27 @@
-this is new file for text
+python manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migratepython manage.py makemigrations
+python manage.py migrate
