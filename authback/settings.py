@@ -522,13 +522,13 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Email settings (used in both production and development)
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.hostinger.com')  # Hostinger SMTP server
-EMAIL_PORT = config('EMAIL_PORT', default=465, cast=int)  # Hostinger uses port 465 for SSL
-EMAIL_USE_TLS = False  # Don't use TLS because we're using SSL
-EMAIL_USE_SSL = True   # Use SSL instead for Hostinger
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')  # Your full Hostinger email
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.hostinger.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)  # Hostinger uses 587 for TLS
+EMAIL_USE_TLS = True  # Use TLS for port 587
+EMAIL_USE_SSL = False  # Don't use SSL when using TLS
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')  # Your Hostinger email
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')  # Your Hostinger email password
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@repairmybike.in')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@repairmybike.in')
 
 # Print email configuration for debugging
 print(f"Email Configuration:")
@@ -536,7 +536,7 @@ print(f"ENVIRONMENT: {ENVIRONMENT}")
 print(f"EMAIL_BACKEND: {EMAIL_BACKEND}")
 print(f"EMAIL_HOST: {EMAIL_HOST}")
 print(f"EMAIL_PORT: {EMAIL_PORT}")
-print(f"EMAIL_USE_SSL: {EMAIL_USE_SSL}")
+print(f"EMAIL_USE_TLS: {EMAIL_USE_TLS}")
 print(f"EMAIL_HOST_USER: {EMAIL_HOST_USER}")
 print(f"DEFAULT_FROM_EMAIL: {DEFAULT_FROM_EMAIL}")
 
