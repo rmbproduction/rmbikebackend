@@ -14,6 +14,7 @@
             "repairing_service/**",
             "subscription_plan/**",
             "tools/**",
+            "spare_parts/**",
             "manage.py",
             ".env.example",
             "paracord_runner.sh",
