@@ -19,6 +19,10 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
+# Environment Configuration - Define this first as it's used throughout the settings
+ENVIRONMENT = config('ENVIRONMENT', default='development')
+print(f"Current Environment: {ENVIRONMENT}")
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -86,18 +90,12 @@ HOST_DOMAIN = config('HOST_DOMAIN', default='localhost:8000')
 HOST_PROTOCOL = config('HOST_PROTOCOL', default='http')
 
 # Frontend URL configuration
-FRONTEND_URL = config('FRONTEND_URL', default=f"{HOST_PROTOCOL}://{HOST_DOMAIN.replace(':8000', ':5173')}")
-
-# In production, default to repairmybike.in
-if os.environ.get('ENVIRONMENT', 'development') == 'production':
-    # Force production URL in production environment
+if ENVIRONMENT == 'production':
     FRONTEND_URL = 'https://repairmybike.in'
 else:
-    # In development, allow localhost URLs
     FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 
-# Print the FRONTEND_URL for debugging
-print(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'development')}")
+# Print frontend URL for debugging
 print(f"FRONTEND_URL: {FRONTEND_URL}")
 
 # Quick-start development settings - unsuitable for production
@@ -106,8 +104,8 @@ print(f"FRONTEND_URL: {FRONTEND_URL}")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-4ga9@g3zft*$zk1rwdu_au@v!w&zjfd%jodqv92=*s!2_x5r&r')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('ENVIRONMENT', 'development') != 'production'
+# Environment Configuration
+DEBUG = ENVIRONMENT != 'production'
 
 # Dynamic allowed hosts based on HOST_DOMAIN
 ALLOWED_HOSTS = [
@@ -190,7 +188,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # In development, allow all origins
-if os.environ.get('ENVIRONMENT', 'development') == 'development':
+if ENVIRONMENT == 'development':
     CORS_ALLOW_ALL_ORIGINS = True
     CORS_ORIGIN_ALLOW_ALL = True
 else:
@@ -388,9 +386,9 @@ LOGIN_REDIRECT_URL = '/login/success/'
 
 
 # Security Settings - Enable in production
-SECURE_SSL_REDIRECT = os.environ.get('ENVIRONMENT', 'development') == 'production'
-SESSION_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
-CSRF_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
+SECURE_SSL_REDIRECT = ENVIRONMENT == 'production'
+SESSION_COOKIE_SECURE = ENVIRONMENT == 'production'
+CSRF_COOKIE_SECURE = ENVIRONMENT == 'production'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Uncommented for Railway deployment
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -413,7 +411,7 @@ RATELIMIT_VIEW = 'accounts.views.rate_limit_view'
 
 # Cache Configuration
 # Determine if we should use Redis based on environment or explicit config
-USE_REDIS = config('USE_REDIS', default=os.environ.get('ENVIRONMENT') == 'production', cast=bool)
+USE_REDIS = config('USE_REDIS', default=ENVIRONMENT == 'production', cast=bool)
 
 # Set up cache based on Redis availability
 CACHES = {
@@ -484,8 +482,8 @@ SIMPLE_JWT = {
 # Cookie settings for JWT tokens
 JWT_AUTH_COOKIE = 'access_token'
 JWT_AUTH_REFRESH_COOKIE = 'refresh_token'
-JWT_AUTH_COOKIE_SECURE = os.environ.get('ENVIRONMENT', 'development') == 'production'
-JWT_AUTH_COOKIE_SAMESITE = 'Lax' if os.environ.get('ENVIRONMENT', 'development') == 'development' else 'Strict'
+JWT_AUTH_COOKIE_SECURE = ENVIRONMENT == 'production'
+JWT_AUTH_COOKIE_SAMESITE = 'Lax' if ENVIRONMENT == 'development' else 'Strict'
 JWT_AUTH_COOKIE_HTTP_ONLY = True
 JWT_AUTH_COOKIE_PATH = '/'
 JWT_AUTH_COOKIE_DOMAIN = None  # Will use the current domain
@@ -518,18 +516,28 @@ CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'redis://localh
 CELERY_FLOWER_PORT = SERVICE_PORTS['CELERY_FLOWER']
 
 # Email Configuration
-if os.environ.get('ENVIRONMENT') == 'production':
+if ENVIRONMENT == 'production':
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-    DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@repairmybike.in')
 else:
-    # Use console backend for development
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'noreply@repairmybike.in'
+
+# Email settings (used in both production and development)
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@repairmybike.in')
+
+# Print email configuration for debugging
+print(f"Email Configuration:")
+print(f"ENVIRONMENT: {ENVIRONMENT}")
+print(f"EMAIL_BACKEND: {EMAIL_BACKEND}")
+print(f"EMAIL_HOST: {EMAIL_HOST}")
+print(f"EMAIL_PORT: {EMAIL_PORT}")
+print(f"EMAIL_USE_TLS: {EMAIL_USE_TLS}")
+print(f"EMAIL_HOST_USER: {EMAIL_HOST_USER}")
+print(f"DEFAULT_FROM_EMAIL: {DEFAULT_FROM_EMAIL}")
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
