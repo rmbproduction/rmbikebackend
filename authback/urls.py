@@ -46,9 +46,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls')),
     path('api/vehicle/', include('vehicle.urls')),
-    path('api/marketplace/', include('marketplace.urls')),
     path('api/repairing-service/', include('repairing_service.urls')),
-    path('api/subscription/', include('subscription_plan.urls')),  # Keep the original subscription URL
+    path('api/subscription/', include('subscription_plan.urls')),
+    path('api/marketplace/', include('marketplace.urls')),
+    path('api/spare-parts/', include('spare_parts.urls')),
+    path('api/cart/', include('cart.urls')),
     path('test-cloudinary/', cloudinary_test, name='test-cloudinary'),
     path('', RedirectView.as_view(url='/admin/')),
 ]
