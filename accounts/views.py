@@ -516,6 +516,15 @@ If you did not create an account, please ignore this email.
 Best regards,
 The Repair My Bike Team"""
 
+            # Log email settings before sending
+            logger.info(f"Attempting to send email with settings:")
+            logger.info(f"EMAIL_HOST: {settings.EMAIL_HOST}")
+            logger.info(f"EMAIL_PORT: {settings.EMAIL_PORT}")
+            logger.info(f"EMAIL_USE_SSL: {settings.EMAIL_USE_SSL}")
+            logger.info(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
+            logger.info(f"FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}")
+            logger.info(f"TO_EMAIL: {user.email}")
+
             send_mail(
                 subject="Verify Your Email - Repair My Bike",
                 message=email_content,
@@ -523,9 +532,12 @@ The Repair My Bike Team"""
                 recipient_list=[user.email],
                 fail_silently=False
             )
+            logger.info(f"Email sent successfully to {user.email}")
             return True
         except Exception as e:
             logger.error(f"Failed to send verification email: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error details:", exc_info=True)
             return False
 
     @method_decorator(csrf_exempt)
@@ -541,7 +553,6 @@ The Repair My Bike Team"""
             serializer = self.get_serializer(data=request.data)
             
             if serializer.is_valid():
-                # Create user account (inactive until email is verified)
                 try:
                     user = serializer.save()
                     user.is_active = False  # Disable until email verification
@@ -560,33 +571,34 @@ The Repair My Bike Team"""
                     )
                     
                     # Get the environment and generate verification URL
-                    environment = os.environ.get('ENVIRONMENT', 'development')
-                    frontend_url = self._get_frontend_url(request, environment)
+                    frontend_url = self._get_frontend_url(request, ENVIRONMENT)
                     verification_url = f"{frontend_url}/verify-email/{token}"
                     
                     # Send verification email
                     email_sent = self._send_verification_email(user, verification_url)
                     
-                    response_data = {
+                    if not email_sent:
+                        # Don't delete the user, just inform them to contact support
+                        return Response({
+                            "message": "Account created but there was an issue sending the verification email.",
+                            "email": user.email,
+                            "verification_required": True,
+                            "next_step": "Please contact support to verify your email.",
+                            "support_email": settings.ADMIN_EMAIL
+                        }, status=status.HTTP_201_CREATED)
+                    
+                    return Response({
                         "message": "Registration successful! Please check your email to verify your account.",
                         "email": user.email,
                         "verification_required": True,
                         "next_step": "Please check your email for verification instructions."
-                    }
-                    
-                    if not email_sent:
-                        response_data["error"] = "There was an issue sending the verification email. Please try registering again."
-                        # Clean up the unverified user and token
-                        verification_token.delete()
-                        user.delete()
-                        return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    
-                    return Response(response_data, status=status.HTTP_201_CREATED)
+                    }, status=status.HTTP_201_CREATED)
                     
                 except Exception as e:
+                    logger.error(f"Registration error: {str(e)}", exc_info=True)
                     return Response({
                         "error": "Registration failed. Please try again.",
-                        "details": str(e)
+                        "details": str(e) if settings.DEBUG else "An unexpected error occurred."
                     }, status=status.HTTP_400_BAD_REQUEST)
             
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
