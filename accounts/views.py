@@ -540,61 +540,57 @@ The Repair My Bike Team"""
 
             serializer = self.get_serializer(data=request.data)
             
-            if not serializer.is_valid():
-                # Transform validation errors into a more user-friendly format
-                errors = {}
-                for field, error_list in serializer.errors.items():
-                    errors[field] = [str(error) for error in error_list]
-                return Response({
-                    "error": "Validation failed",
-                    "details": errors
-                }, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.is_valid():
+                # Create user account (inactive until email is verified)
+                try:
+                    user = serializer.save()
+                    user.is_active = False  # Disable until email verification
+                    user.save()
+                    
+                    # Generate verification token
+                    token = get_random_string(64)
+                    
+                    # Store in both cache and database for redundancy
+                    cache.set(f'email_verification_{token}', user.pk, timeout=86400)
+                    
+                    # Also store in database
+                    verification_token = EmailVerificationToken.objects.create(
+                        user=user,
+                        token=token
+                    )
+                    
+                    # Get the environment and generate verification URL
+                    environment = os.environ.get('ENVIRONMENT', 'development')
+                    frontend_url = self._get_frontend_url(request, environment)
+                    verification_url = f"{frontend_url}/verify-email/{token}"
+                    
+                    # Send verification email
+                    email_sent = self._send_verification_email(user, verification_url)
+                    
+                    response_data = {
+                        "message": "Registration successful! Please check your email to verify your account.",
+                        "email": user.email,
+                        "verification_required": True,
+                        "next_step": "Please check your email for verification instructions."
+                    }
+                    
+                    if not email_sent:
+                        response_data["error"] = "There was an issue sending the verification email. Please try registering again."
+                        # Clean up the unverified user and token
+                        verification_token.delete()
+                        user.delete()
+                        return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    
+                    return Response(response_data, status=status.HTTP_201_CREATED)
+                    
+                except Exception as e:
+                    return Response({
+                        "error": "Registration failed. Please try again.",
+                        "details": str(e)
+                    }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Create user account (inactive until email is verified)
-            try:
-                user = serializer.save()
-                user.is_active = False  # Disable until email verification
-                user.save()
-                
-                # Generate verification token
-                token = get_random_string(64)
-                
-                # Store in both cache and database for redundancy
-                cache.set(f'email_verification_{token}', user.pk, timeout=86400)
-                
-                # Also store in database
-                verification_token = EmailVerificationToken.objects.create(
-                    user=user,
-                    token=token
-                )
-                
-                # Get the environment and generate verification URL
-                environment = os.environ.get('ENVIRONMENT', 'development')
-                frontend_url = self._get_frontend_url(request, environment)
-                verification_url = f"{frontend_url}/verify-email/{token}"
-                
-                # Send verification email
-                email_sent = self._send_verification_email(user, verification_url)
-                
-                response_data = {
-                    "message": "Registration successful! Please check your email to verify your account.",
-                    "email": user.email,
-                    "verification_required": True,
-                    "verification_token": token,  # Include the token in the response
-                    "next_step": "Please verify your email before logging in."
-                }
-                
-                if not email_sent:
-                    response_data["warning"] = "Account created but there was an issue sending the verification email. You can still verify your account using the token."
-                
-                return Response(response_data, status=status.HTTP_201_CREATED)
-                
-            except Exception as e:
-                logger.error(f"Error creating user account: {str(e)}")
-                return Response({
-                    "error": "Failed to create account. Please try again later."
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
         except Exception as e:
             logger.error(f"Unexpected error in signup: {str(e)}")
             return Response({
