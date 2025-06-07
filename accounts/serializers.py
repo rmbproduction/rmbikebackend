@@ -179,7 +179,7 @@ class UserProfileWriteSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             'name', 'phone_number', 'address', 'city',
-            'state', 'postal_code', 'country', 'profile_photo', 'bio',
+            'state', 'postal_code', 'country', 'profile_photo',
             'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
         read_only_fields = ['id', 'user']
