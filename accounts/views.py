@@ -768,32 +768,28 @@ class UserProfileView(APIView):
     def get(self, request):
         """Get user profile"""
         try:
-            # Log the request for debugging
             logger.info(f"Profile request received for user: {request.user.email}")
             
-            # Get or create profile with minimal fields
             profile, created = UserProfile.objects.get_or_create(
                 user=request.user,
                 defaults={'name': request.user.get_full_name() or request.user.username}
             )
             
-            # Log profile retrieval
             logger.info(f"Profile {'created' if created else 'retrieved'} for user: {request.user.email}")
             
-            # Serialize with only the fields we know exist
-            serializer = UserProfileSerializer(profile)
-            data = serializer.data
+            # Use select_related to efficiently fetch related vehicle data
+            profile = UserProfile.objects.select_related(
+                'vehicle_name',
+                'vehicle_name__vehicle_type',
+                'vehicle_name__manufacturer',
+                'vehicle_type',
+                'manufacturer'
+            ).get(id=profile.id)
             
-            # Remove any problematic fields if they exist
-            if 'preferredLocation' in data:
-                data.pop('preferredLocation')
-            if 'preferred_location' in data:
-                data.pop('preferred_location')
-                
-            return Response(data)
+            serializer = UserProfileSerializer(profile)
+            return Response(serializer.data)
             
         except Exception as e:
-            # Log the full error with traceback
             logger.exception(f"Error in profile retrieval for user {request.user.email}: {str(e)}")
             return Response(
                 {"detail": "Error retrieving profile. Please try again later."}, 
@@ -803,18 +799,12 @@ class UserProfileView(APIView):
     def post(self, request):
         """Create or update user profile"""
         try:
-            # Log the request
             logger.info(f"Profile update request received for user: {request.user.email}")
             
-            # Get or create profile
             profile, created = UserProfile.objects.get_or_create(user=request.user)
             
             # Clean up request data
             data = request.data.copy()
-            if 'preferredLocation' in data:
-                data.pop('preferredLocation')
-            if 'preferred_location' in data:
-                data.pop('preferred_location')
             
             # Handle different content types
             if request.content_type and 'application/json' in request.content_type:
@@ -823,24 +813,16 @@ class UserProfileView(APIView):
                 cleaned_data = data
                 if 'data' in cleaned_data and isinstance(cleaned_data['data'], str):
                     try:
-                        json_data = json.loads(cleaned_data['data'])
-                        # Remove problematic fields from JSON data
-                        if 'preferredLocation' in json_data:
-                            json_data.pop('preferredLocation')
-                        if 'preferred_location' in json_data:
-                            json_data.pop('preferred_location')
-                        # Merge cleaned JSON data
-                        for key, value in json_data.items():
-                            if key not in cleaned_data:
-                                cleaned_data[key] = value
+                        cleaned_data = json.loads(cleaned_data['data'])
                     except json.JSONDecodeError as e:
                         logger.warning(f"JSON decode error in profile update: {str(e)}")
             
-            # Update with cleaned data
-            serializer = UserProfileSerializer(profile, data=cleaned_data, partial=True)
+            # Use UserProfileWriteSerializer for validation and saving
+            serializer = UserProfileWriteSerializer(profile, data=cleaned_data, partial=True)
             
             if serializer.is_valid():
                 profile = serializer.save()
+                # Return response using UserProfileSerializer for consistent output
                 return Response(
                     UserProfileSerializer(profile).data, 
                     status=status.HTTP_200_OK
@@ -862,10 +844,8 @@ class UserProfileView(APIView):
     def patch(self, request):
         """Partially update user profile"""
         try:
-            # Log the request
             logger.info(f"Profile patch request received for user: {request.user.email}")
             
-            # Get or create profile
             profile, created = UserProfile.objects.get_or_create(
                 user=request.user,
                 defaults={'name': request.user.get_full_name() or request.user.username}
@@ -873,10 +853,6 @@ class UserProfileView(APIView):
             
             # Clean up request data
             data = request.data.copy()
-            if 'preferredLocation' in data:
-                data.pop('preferredLocation')
-            if 'preferred_location' in data:
-                data.pop('preferred_location')
             
             # Handle different content types
             if request.content_type and 'application/json' in request.content_type:
@@ -885,15 +861,7 @@ class UserProfileView(APIView):
                 cleaned_data = data
                 if 'data' in cleaned_data and isinstance(cleaned_data['data'], str):
                     try:
-                        json_data = json.loads(cleaned_data['data'])
-                        # Remove problematic fields from JSON data
-                        if 'preferredLocation' in json_data:
-                            json_data.pop('preferredLocation')
-                        if 'preferred_location' in json_data:
-                            json_data.pop('preferred_location')
-                        # Merge cleaned JSON data
-                        for key, value in json_data.items():
-                            cleaned_data[key] = value
+                        cleaned_data = json.loads(cleaned_data['data'])
                     except json.JSONDecodeError as e:
                         logger.warning(f"JSON decode error in profile patch: {str(e)}")
             
@@ -901,12 +869,12 @@ class UserProfileView(APIView):
             if 'postalCode' in cleaned_data:
                 cleaned_data['postal_code'] = cleaned_data.pop('postalCode')
             
-            # Update with cleaned data
-            serializer = UserProfileSerializer(profile, data=cleaned_data, partial=True)
+            # Use UserProfileWriteSerializer for validation and saving
+            serializer = UserProfileWriteSerializer(profile, data=cleaned_data, partial=True)
             
             if serializer.is_valid():
                 updated_profile = serializer.save()
-                logger.info(f"Profile patched successfully for user {request.user.email}")
+                # Return response using UserProfileSerializer for consistent output
                 return Response(
                     UserProfileSerializer(updated_profile).data,
                     status=status.HTTP_200_OK

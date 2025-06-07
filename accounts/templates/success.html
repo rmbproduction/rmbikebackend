@@ -2,21 +2,37 @@
 <html>
 <head>
     <title>Login Success</title>
+    <script src="/static/js/tokenManager.js"></script>
 </head>
 <body>
     <h1>Welcome {{ user.username }}!</h1>
     <p>You have successfully logged in with Google.</p>
 
     <script>
-        // Store tokens in localStorage or cookies
-        const access = "{{ access_token }}";
-        const refresh = "{{ refresh_token }}";
+        // Get tokens from template
+        const tokens = {
+            access: "{{ access_token }}",
+            refresh: "{{ refresh_token }}"
+        };
 
-        // Save them to localStorage (or do whatever the client needs)
-        localStorage.setItem('access_token', access);
-        localStorage.setItem('refresh_token', refresh);
+        // Use TokenManager to store tokens
+        if (typeof TokenManager !== 'undefined') {
+            TokenManager.setTokens(tokens, true);  // true for rememberMe since it's OAuth
+            console.log("Tokens stored successfully via TokenManager!");
+        } else {
+            // Fallback if TokenManager is not available
+            console.warn("TokenManager not found, using direct storage");
+            localStorage.setItem('access_token', tokens.access);
+            localStorage.setItem('refresh_token', tokens.refresh);
+        }
 
-        console.log("JWT Access Token stored successfully!");
+        // Close window or redirect as needed
+        if (window.opener) {
+            window.opener.postMessage({ type: 'OAUTH_SUCCESS', tokens }, window.location.origin);
+            window.close();
+        } else {
+            window.location.href = '/';
+        }
     </script>
 </body>
 </html>

@@ -90,16 +90,37 @@ class UserSerializer(serializers.ModelSerializer):
         )
         return user
 
+class VehicleTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleType
+        fields = ['id', 'name']
+
+class ManufacturerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Manufacturer
+        fields = ['id', 'name']
+
+class VehicleModelSerializer(serializers.ModelSerializer):
+    vehicle_type = VehicleTypeSerializer(read_only=True)
+    manufacturer = ManufacturerSerializer(read_only=True)
+    
+    class Meta:
+        model = VehicleModel
+        fields = ['id', 'name', 'vehicle_type', 'manufacturer']
+
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
+    vehicle_name = VehicleModelSerializer(read_only=True)
+    vehicle_type = VehicleTypeSerializer(read_only=True)
+    manufacturer = ManufacturerSerializer(read_only=True)
 
     class Meta:
         model = UserProfile
         fields = [
             'id', 'user', 'email', 'username', 'name', 'phone',
             'address', 'city', 'state', 'postal_code', 'country',
-            'profile_photo'
+            'profile_photo', 'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
         read_only_fields = ['id', 'user']
 
