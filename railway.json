@@ -16,7 +16,7 @@
             "tools/**",
             "spare_parts/**",
             "manage.py",
-            ".env.example",
+            ".env",
             "paracord_runner.sh",
             "pytest.ini"
         ]
