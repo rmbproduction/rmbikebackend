@@ -179,15 +179,15 @@ class UserProfileWriteSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             'name', 'phone_number', 'address', 'city',
-            'state', 'postal_code', 'country', 'profile_picture', 'bio',
+            'state', 'postal_code', 'country', 'profile_photo', 'bio',
             'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user']
 
     def validate(self, data):
         """Ensure all required fields are present and vehicle models match manufacturer"""
         # Required field validation
-        required_fields = ['address', 'city', 'state', 'postal_code', 'phone_number', 
+        required_fields = ['name', 'address', 'city', 'state', 'postal_code', 'phone_number', 
                          'vehicle_name', 'vehicle_type', 'manufacturer']
         
         for field in required_fields:
