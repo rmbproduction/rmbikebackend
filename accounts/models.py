@@ -124,6 +124,11 @@ class UserProfile(models.Model):
     postal_code = models.CharField(max_length=10, blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
 
+    # Vehicle fields
+    vehicle_name = models.ForeignKey('vehicle.VehicleModel', on_delete=models.SET_NULL, null=True, blank=True)
+    vehicle_type = models.ForeignKey('vehicle.VehicleType', on_delete=models.SET_NULL, null=True, blank=True)
+    manufacturer = models.ForeignKey('vehicle.Manufacturer', on_delete=models.SET_NULL, null=True, blank=True)
+
     def __str__(self):
         return f"{self.user.username}'s Profile"
 

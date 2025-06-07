@@ -147,6 +147,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return data
 
 class UserProfileWriteSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
     vehicle_name = serializers.PrimaryKeyRelatedField(
         queryset=VehicleModel.objects.all(),
         required=True,
@@ -178,11 +180,11 @@ class UserProfileWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
-            'name', 'phone_number', 'address', 'city',
+            'email', 'username', 'name', 'phone_number', 'address', 'city',
             'state', 'postal_code', 'country', 'profile_photo',
             'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
-        read_only_fields = ['id', 'user']
+        read_only_fields = ['id', 'user', 'email', 'username']
 
     def validate(self, data):
         """Ensure all required fields are present and vehicle models match manufacturer"""
