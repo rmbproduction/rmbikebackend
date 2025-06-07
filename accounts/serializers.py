@@ -118,7 +118,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'user', 'email', 'username', 'name', 'phone',
+            'id', 'user', 'email', 'username', 'name', 'phone_number',
             'address', 'city', 'state', 'postal_code', 'country',
             'profile_photo', 'vehicle_name', 'vehicle_type', 'manufacturer'
         ]
