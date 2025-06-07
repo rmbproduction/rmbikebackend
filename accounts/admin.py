@@ -8,14 +8,14 @@ from .models import User, UserProfile, EmailVerificationToken, ContactMessage
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('get_email', 'name', 'get_username', 'city', 'state', 'country', 'phone')
-    search_fields = ('user__email', 'name', 'user__username', 'phone')
+    list_display = ('get_email', 'name', 'get_username', 'city', 'state', 'country', 'phone_number')
+    search_fields = ('user__email', 'name', 'user__username', 'phone_number')
     list_filter = ('country', 'state')
     readonly_fields = ('get_email',)
 
     fieldsets = (
         ('Personal Information', {
-            'fields': ('user', 'name', 'phone', 'profile_photo')
+            'fields': ('user', 'name', 'phone_number', 'profile_photo')
         }),
         ('Address Information', {
             'fields': ('address', 'city', 'state', 'country', 'postal_code')
