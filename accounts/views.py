@@ -777,15 +777,6 @@ class UserProfileView(APIView):
             
             logger.info(f"Profile {'created' if created else 'retrieved'} for user: {request.user.email}")
             
-            # Use select_related to efficiently fetch related vehicle data
-            profile = UserProfile.objects.select_related(
-                'vehicle_name',
-                'vehicle_name__vehicle_type',
-                'vehicle_name__manufacturer',
-                'vehicle_type',
-                'manufacturer'
-            ).get(id=profile.id)
-            
             serializer = UserProfileSerializer(profile)
             return Response(serializer.data)
             
