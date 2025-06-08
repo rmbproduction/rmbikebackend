@@ -44,6 +44,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Q
 from vehicle.models import VehicleModel, VehicleType, Manufacturer
 import json
+from tools.image_optimizer.utils import optimize_image, create_responsive_images
 
 logger = logging.getLogger(__name__)
 
@@ -796,6 +797,34 @@ class UserProfileView(APIView):
             
             # Clean up request data
             data = request.data.copy()
+            
+            # Handle profile photo upload
+            if 'profile_photo' in request.FILES:
+                profile_photo = request.FILES['profile_photo']
+                
+                # Optimize the image before saving
+                optimized_image = optimize_image(
+                    profile_photo,
+                    max_size=1024,  # Max size for profile photos
+                    quality=85,
+                    format='JPEG'
+                )
+                
+                if optimized_image:
+                    data['profile_photo'] = optimized_image
+                    
+                    # Create responsive versions
+                    responsive_images = create_responsive_images(
+                        profile_photo,
+                        sizes=['thumbnail', 'small', 'medium'],
+                        formats=['JPEG', 'WEBP']
+                    )
+                    
+                    # Store responsive versions in profile data
+                    if responsive_images:
+                        data['profile_photo_thumbnail'] = responsive_images.get('thumbnail_jpeg')
+                        data['profile_photo_small'] = responsive_images.get('small_jpeg')
+                        data['profile_photo_medium'] = responsive_images.get('medium_jpeg')
             
             # Handle different content types
             if request.content_type and 'application/json' in request.content_type:

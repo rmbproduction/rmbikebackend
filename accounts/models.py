@@ -116,6 +116,9 @@ class UserProfile(models.Model):
     name = models.CharField(max_length=255)
     address = models.TextField(blank=False, default='', help_text="Required field")
     profile_photo = CloudinaryField('image', folder='profiles', null=True, blank=True)
+    profile_photo_thumbnail = CloudinaryField('image', folder='profiles/thumbnails', null=True, blank=True)
+    profile_photo_small = CloudinaryField('image', folder='profiles/small', null=True, blank=True)
+    profile_photo_medium = CloudinaryField('image', folder='profiles/medium', null=True, blank=True)
     
     # Location fields
     city = models.CharField(max_length=100, blank=True, null=True)
