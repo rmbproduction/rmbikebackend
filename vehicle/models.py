@@ -35,16 +35,8 @@ class VehicleModel(models.Model):
     manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, db_index=True)
     vehicle_type = models.ForeignKey(VehicleType, on_delete=models.CASCADE, db_index=True)
     
-    # Enhanced image fields
+    # Main image field
     image = CloudinaryField('image', folder='vehicle_models', null=True, blank=True)
-    image_front = CloudinaryField('image_front', folder='vehicle_models/front', null=True, blank=True)
-    image_back = CloudinaryField('image_back', folder='vehicle_models/back', null=True, blank=True)
-    image_side = CloudinaryField('image_side', folder='vehicle_models/side', null=True, blank=True)
-    thumbnail = CloudinaryField('thumbnail', folder='vehicle_models/thumbnails', null=True, blank=True)
-    
-    # Additional metadata
-    specs = models.JSONField(default=dict, blank=True, help_text="Technical specifications")
-    description = models.TextField(blank=True, null=True)
 
     class Meta:
         unique_together = ('name', 'manufacturer')
