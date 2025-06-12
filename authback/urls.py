@@ -44,6 +44,8 @@ def cloudinary_test(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('jet/', include('jet.urls', 'jet')),
+    path('jet/dashboard/', include('jet.dashboard.urls', 'jet-dashboard')),
     path('api/accounts/', include('accounts.urls')),
     path('api/vehicle/', include('vehicle.urls')),
     path('api/repairing-service/', include('repairing_service.urls')),
@@ -53,7 +55,7 @@ urlpatterns = [
     path('api/cart/', include('cart.urls')),
     path('test-cloudinary/', cloudinary_test, name='test-cloudinary'),
     path('', RedirectView.as_view(url='/admin/')),
-    path('grappelli/', include('grappelli.urls')),
+    
 ]
 
 if settings.DEBUG:
