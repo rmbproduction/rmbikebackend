@@ -43,6 +43,8 @@ def cloudinary_test(request):
     })
 
 urlpatterns = [
+    path('jet/', include('jet.urls', 'jet')),  # Jet admin interface
+    path('jet/dashboard/', include('jet.dashboard.urls', 'jet-dashboard')),  # Optiona
     path('admin/', admin.site.urls),
     # Removed jet URLs due to Python 3.12 incompatibility
     path('api/accounts/', include('accounts.urls')),

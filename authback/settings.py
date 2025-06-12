@@ -124,6 +124,7 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     # "grappelli",
     # "jazzmin",
+    # Removing jet due to Python 3.12 incompatibility
     "jet",
     "jet.dashboard",
     'django.contrib.admin',
