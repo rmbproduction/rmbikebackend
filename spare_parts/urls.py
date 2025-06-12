@@ -13,7 +13,8 @@ from .views import (
     CalculateDistanceFeeView,
     PartsOrderViewSet,
     UserOrdersView,
-    check_spare_parts_cloudinary
+    check_spare_parts_cloudinary,
+    direct_image_upload
 )
 
 router = DefaultRouter()
@@ -41,4 +42,7 @@ urlpatterns = [
     
     # Diagnostic endpoints
     path('check-cloudinary/', check_spare_parts_cloudinary, name='check-spare-parts-cloudinary'),
+    
+    # Direct upload endpoint (alternative to admin)
+    path('upload-image/', direct_image_upload, name='direct-image-upload'),
 ] 

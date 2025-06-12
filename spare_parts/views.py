@@ -796,4 +796,67 @@ def check_spare_parts_cloudinary(request):
             'api_key_configured': bool(settings.CLOUDINARY_API_KEY),
             'api_secret_configured': bool(settings.CLOUDINARY_API_SECRET),
         }
-    }) 
+    })
+
+@api_view(['POST'])
+def direct_image_upload(request):
+    """
+    A simple direct image upload endpoint that doesn't require the admin interface.
+    This can be used as a workaround if the admin interface is having issues.
+    """
+    try:
+        # Check if part_uuid is provided
+        part_uuid = request.data.get('part_uuid')
+        if not part_uuid:
+            return JsonResponse({'error': 'part_uuid is required'}, status=400)
+            
+        # Check if image file is provided
+        if 'image' not in request.FILES:
+            return JsonResponse({'error': 'No image file provided'}, status=400)
+            
+        # Get the part
+        try:
+            part = SparePart.objects.get(uuid=part_uuid)
+        except SparePart.DoesNotExist:
+            return JsonResponse({'error': f'SparePart with uuid {part_uuid} not found'}, status=404)
+            
+        # Get parameters
+        image_file = request.FILES['image']
+        is_main_image = request.data.get('is_main_image', 'false').lower() == 'true'
+        
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            image_file,
+            folder=f"spare_parts/{part.uuid}",
+            public_id=f"{part.slug}_{timezone.now().timestamp()}",
+            overwrite=True,
+            resource_type="image"
+        )
+        
+        # Update the part with the image URL
+        if is_main_image:
+            part.main_image = upload_result['public_id']
+            part.save()
+            message = "Main image uploaded successfully"
+        else:
+            # Add to additional images
+            part.add_additional_image(upload_result['secure_url'], upload_result['public_id'])
+            message = "Additional image uploaded successfully"
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': message,
+            'image_data': {
+                'public_id': upload_result['public_id'],
+                'url': upload_result['secure_url'],
+                'is_main_image': is_main_image
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Failed to upload image: {str(e)}',
+            'traceback': traceback.format_exc()
+        }, status=500) 

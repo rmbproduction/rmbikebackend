@@ -6,6 +6,7 @@ import uuid
 from django.conf import settings
 from django.utils import timezone
 import math
+import cloudinary
 
 class PartCategory(models.Model):
     """Categories for spare parts (e.g., Engine Parts, Brake Parts, etc.)"""
@@ -60,7 +61,9 @@ class SparePart(models.Model):
     vehicle_types = models.ManyToManyField(VehicleType, related_name='spare_parts')
     
     # Media
-    main_image = CloudinaryField('image', folder='spare_parts')
+    main_image = CloudinaryField('image', folder='spare_parts', null=True, blank=True, 
+                               transformation={'width': 800, 'height': 600, 'crop': 'fill', 'quality': 'auto'},
+                               format='webp')
     additional_images = models.JSONField(default=list, blank=True)  # Store URLs of additional images
     
     # SEO and display
@@ -89,6 +92,28 @@ class SparePart(models.Model):
     def is_in_stock(self):
         """Check if the part is currently in stock"""
         return self.stock_quantity > 0 and self.availability_status == 'in_stock'
+        
+    def get_main_image_url(self):
+        """Get the URL for the main image with fallback"""
+        if self.main_image and hasattr(self.main_image, 'url'):
+            return self.main_image.url
+        return None
+        
+    def add_additional_image(self, image_url, public_id=None):
+        """Add an image to the additional images list"""
+        if not self.additional_images:
+            self.additional_images = []
+            
+        image_data = {
+            'url': image_url,
+            'created_at': timezone.now().isoformat()
+        }
+        
+        if public_id:
+            image_data['public_id'] = public_id
+            
+        self.additional_images.append(image_data)
+        self.save()
 
     def __str__(self):
         return f"{self.name} ({self.part_number})"
