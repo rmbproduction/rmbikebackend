@@ -42,11 +42,9 @@ def cloudinary_test(request):
         'media_url': settings.MEDIA_URL,
     })
 
-urlpatterns = [
-    path('jet/', include('jet.urls', 'jet')),  # Jet admin interface
-    path('jet/dashboard/', include('jet.dashboard.urls', 'jet-dashboard')),  # Optiona
+# Base URL patterns
+base_urlpatterns = [
     path('admin/', admin.site.urls),
-    # Removed jet URLs due to Python 3.12 incompatibility
     path('api/accounts/', include('accounts.urls')),
     path('api/vehicle/', include('vehicle.urls')),
     path('api/repairing-service/', include('repairing_service.urls')),
@@ -56,8 +54,24 @@ urlpatterns = [
     path('api/cart/', include('cart.urls')),
     path('test-cloudinary/', cloudinary_test, name='test-cloudinary'),
     path('', RedirectView.as_view(url='/admin/')),
-    
 ]
+
+# Try to add Jet URLs if available
+try:
+    import jet
+    # Django Jet is available, add its URLs
+    jet_urlpatterns = [
+        path('jet/', include('jet.urls', 'jet')),
+        path('jet/dashboard/', include('jet.dashboard.urls', 'jet-dashboard')),
+    ]
+    print("Django Jet URLs added to urlpatterns")
+except ImportError:
+    # Django Jet is not available
+    jet_urlpatterns = []
+    print("Django Jet URLs not added to urlpatterns")
+
+# Combine URL patterns
+urlpatterns = jet_urlpatterns + base_urlpatterns
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

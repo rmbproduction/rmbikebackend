@@ -121,12 +121,10 @@ ALLOWED_HOSTS = [
 
 # Application definition
 
-INSTALLED_APPS = [
+# Define base apps that are always needed
+BASE_INSTALLED_APPS = [
     # "grappelli",
     # "jazzmin",
-    # Removing jet due to Python 3.12 incompatibility
-    "jet",
-    "jet.dashboard",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -150,6 +148,24 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'tools.image_optimizer.apps.ImageOptimizerConfig',
 ]
+
+# Try to import Django Jet and add it to INSTALLED_APPS if available
+try:
+    import jet
+    import jet.dashboard
+    # Django Jet is available, add it to INSTALLED_APPS
+    JET_APPS = [
+        "jet",
+        "jet.dashboard",
+    ]
+    print("Django Jet is available and will be used")
+except ImportError:
+    # Django Jet is not available
+    JET_APPS = []
+    print("Django Jet is not available and will be skipped")
+
+# Combine the app lists
+INSTALLED_APPS = JET_APPS + BASE_INSTALLED_APPS
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Keep this as the first middleware
