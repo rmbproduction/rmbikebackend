@@ -1,10 +1,47 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django import forms
+import cloudinary
+import cloudinary.uploader
+from django.contrib import messages
 from .models import (
     PartCategory, SparePart, PartReview,
     PartsCart, PartsCartItem, PartsOrder, PartsOrderItem, DistancePricingRule
 )
+
+class SparePartAdminForm(forms.ModelForm):
+    upload_image = forms.FileField(required=False, label="Upload Main Image")
+    
+    class Meta:
+        model = SparePart
+        fields = '__all__'
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Handle image upload
+        uploaded_image = self.cleaned_data.get('upload_image')
+        if uploaded_image:
+            try:
+                # Upload to Cloudinary
+                result = cloudinary.uploader.upload(
+                    uploaded_image,
+                    folder=f"spare_parts/{instance.uuid}",
+                    public_id=f"{instance.slug}_{instance.uuid}",
+                    overwrite=True
+                )
+                
+                # Set the main_image field with the Cloudinary public_id
+                instance.main_image = result['public_id']
+            except Exception as e:
+                self.add_error('upload_image', f"Error uploading to Cloudinary: {str(e)}")
+        
+        if commit:
+            instance.save()
+            self.save_m2m()
+        
+        return instance
 
 class PartCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug', 'parent', 'is_active', 'category_image_preview')
@@ -21,6 +58,7 @@ class PartCategoryAdmin(admin.ModelAdmin):
     category_image_preview.short_description = 'Image Preview'
 
 class SparePartAdmin(admin.ModelAdmin):
+    form = SparePartAdminForm
     list_display = ('name', 'part_number', 'price', 'discounted_price', 'stock_quantity', 'availability_status', 'is_active', 'image_preview')
     list_filter = ('category', 'availability_status', 'is_active', 'is_featured')
     search_fields = ('name', 'part_number', 'description')
@@ -39,7 +77,7 @@ class SparePartAdmin(admin.ModelAdmin):
             'fields': ('manufacturers', 'vehicle_models', 'vehicle_types')
         }),
         ('Media', {
-            'fields': ('main_image', 'image_preview', 'additional_images', 'additional_images_preview')
+            'fields': ('upload_image', 'image_preview', 'additional_images', 'additional_images_preview')
         }),
         ('Specifications', {
             'fields': ('specifications',)
@@ -64,6 +102,18 @@ class SparePartAdmin(admin.ModelAdmin):
                 html += f'<img src="{img["url"]}" width="150" height="auto" style="margin: 5px;" />'
         html += '</div>'
         return mark_safe(html)
+    
+    def save_model(self, request, obj, form, change):
+        """Override save_model to ensure the image is properly saved"""
+        super().save_model(request, obj, form, change)
+        
+        # Check if we need to update the image preview after save
+        if obj.main_image and hasattr(obj.main_image, 'url'):
+            # Force refresh the admin page to show the new image
+            request._messages.add(
+                messages.INFO, 
+                f"Image uploaded successfully. URL: {obj.main_image.url}"
+            )
     
     image_preview.short_description = 'Main Image Preview'
     additional_images_preview.short_description = 'Additional Images Preview'

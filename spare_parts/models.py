@@ -61,9 +61,7 @@ class SparePart(models.Model):
     vehicle_types = models.ManyToManyField(VehicleType, related_name='spare_parts')
     
     # Media
-    main_image = CloudinaryField('image', folder='spare_parts', null=True, blank=True, 
-                               transformation={'width': 800, 'height': 600, 'crop': 'fill', 'quality': 'auto'},
-                               format='webp')
+    main_image = CloudinaryField('image', folder='spare_parts', null=True, blank=True)
     additional_images = models.JSONField(default=list, blank=True)  # Store URLs of additional images
     
     # SEO and display
