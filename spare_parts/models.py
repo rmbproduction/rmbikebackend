@@ -25,6 +25,45 @@ class PartCategory(models.Model):
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
+    def get_image_url(self):
+        """Get the URL for the image with fallback"""
+        if self.image:
+            # If image is a string (Cloudinary public_id), build the URL
+            if isinstance(self.image, str):
+                try:
+                    # First try to get the actual resource which includes the correct version and format
+                    import cloudinary.api
+                    try:
+                        resource = cloudinary.api.resource(self.image)
+                        return resource['secure_url']
+                    except Exception:
+                        # If that fails, try CloudinaryImage
+                        import cloudinary
+                        url = cloudinary.CloudinaryImage(self.image).build_url(secure=True)
+                        return url
+                except Exception:
+                    # Fallback: construct the URL directly
+                    try:
+                        import cloudinary
+                        cloud_name = cloudinary.config().cloud_name
+                        # Try to determine the format from the public_id
+                        if '.' in self.image:
+                            # The public_id already includes the format
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{self.image}"
+                        else:
+                            # Add a generic format
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{self.image}.png"
+                    except Exception:
+                        pass
+            # If image has url attribute, use it (legacy support)
+            elif hasattr(self.image, 'url'):
+                url = self.image.url
+                # Ensure URL is secure (https)
+                if url and url.startswith('http:'):
+                    url = url.replace('http:', 'https:', 1)
+                return url
+        return None
+
     def __str__(self):
         return self.name
 
@@ -97,15 +136,28 @@ class SparePart(models.Model):
             # If main_image is a string (Cloudinary public_id), build the URL
             if isinstance(self.main_image, str):
                 try:
-                    # Try to use CloudinaryImage to build URL
-                    import cloudinary
-                    url = cloudinary.CloudinaryImage(self.main_image).build_url(secure=True)
-                    return url
+                    # First try to get the actual resource which includes the correct version and format
+                    import cloudinary.api
+                    try:
+                        resource = cloudinary.api.resource(self.main_image)
+                        return resource['secure_url']
+                    except Exception:
+                        # If that fails, try CloudinaryImage
+                        import cloudinary
+                        url = cloudinary.CloudinaryImage(self.main_image).build_url(secure=True)
+                        return url
                 except Exception:
                     # Fallback: construct the URL directly
                     try:
+                        import cloudinary
                         cloud_name = cloudinary.config().cloud_name
-                        return f"https://res.cloudinary.com/{cloud_name}/image/upload/{self.main_image}"
+                        # Try to determine the format from the public_id
+                        if '.' in self.main_image:
+                            # The public_id already includes the format
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{self.main_image}"
+                        else:
+                            # Add a generic format
+                            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{self.main_image}.png"
                     except Exception:
                         pass
             # If main_image has url attribute, use it (legacy support)
