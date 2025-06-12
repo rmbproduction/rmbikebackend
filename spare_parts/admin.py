@@ -1,22 +1,72 @@
 from django.contrib import admin
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import (
     PartCategory, SparePart, PartReview,
     PartsCart, PartsCartItem, PartsOrder, PartsOrderItem, DistancePricingRule
 )
 
 class PartCategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'parent', 'is_active')
+    list_display = ('name', 'slug', 'parent', 'is_active', 'category_image_preview')
     list_filter = ('is_active',)
     search_fields = ('name', 'description')
     prepopulated_fields = {'slug': ('name',)}
+    readonly_fields = ('category_image_preview',)
+    
+    def category_image_preview(self, obj):
+        if obj.image and hasattr(obj.image, 'url'):
+            return format_html('<img src="{}" width="100" height="auto" />', obj.image.url)
+        return "No Image"
+    
+    category_image_preview.short_description = 'Image Preview'
 
 class SparePartAdmin(admin.ModelAdmin):
-    list_display = ('name', 'part_number', 'price', 'discounted_price', 'stock_quantity', 'availability_status', 'is_active')
+    list_display = ('name', 'part_number', 'price', 'discounted_price', 'stock_quantity', 'availability_status', 'is_active', 'image_preview')
     list_filter = ('category', 'availability_status', 'is_active', 'is_featured')
     search_fields = ('name', 'part_number', 'description')
     prepopulated_fields = {'slug': ('name',)}
     filter_horizontal = ('manufacturers', 'vehicle_models', 'vehicle_types')
     list_editable = ('price', 'discounted_price', 'stock_quantity', 'availability_status')
+    readonly_fields = ('image_preview', 'additional_images_preview')
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'slug', 'part_number', 'category', 'description', 'features')
+        }),
+        ('Pricing and Inventory', {
+            'fields': ('price', 'discounted_price', 'stock_quantity', 'availability_status')
+        }),
+        ('Vehicle Compatibility', {
+            'fields': ('manufacturers', 'vehicle_models', 'vehicle_types')
+        }),
+        ('Media', {
+            'fields': ('main_image', 'image_preview', 'additional_images', 'additional_images_preview')
+        }),
+        ('Specifications', {
+            'fields': ('specifications',)
+        }),
+        ('SEO and Display', {
+            'fields': ('meta_title', 'meta_description', 'is_featured', 'is_active')
+        }),
+    )
+    
+    def image_preview(self, obj):
+        if obj.main_image and hasattr(obj.main_image, 'url'):
+            return format_html('<img src="{}" width="200" height="auto" />', obj.main_image.url)
+        return "No Main Image"
+    
+    def additional_images_preview(self, obj):
+        if not obj.additional_images:
+            return "No Additional Images"
+        
+        html = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
+        for img in obj.additional_images:
+            if 'url' in img:
+                html += f'<img src="{img["url"]}" width="150" height="auto" style="margin: 5px;" />'
+        html += '</div>'
+        return mark_safe(html)
+    
+    image_preview.short_description = 'Main Image Preview'
+    additional_images_preview.short_description = 'Additional Images Preview'
 
 class PartReviewAdmin(admin.ModelAdmin):
     list_display = ('part', 'user', 'rating', 'purchase_verified', 'created_at')

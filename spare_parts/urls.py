@@ -12,7 +12,8 @@ from .views import (
     UserCartsView,
     CalculateDistanceFeeView,
     PartsOrderViewSet,
-    UserOrdersView
+    UserOrdersView,
+    check_spare_parts_cloudinary
 )
 
 router = DefaultRouter()
@@ -37,4 +38,7 @@ urlpatterns = [
     
     # Utility endpoints
     path('calculate-distance-fee/', CalculateDistanceFeeView.as_view(), name='calculate-parts-distance-fee'),
+    
+    # Diagnostic endpoints
+    path('check-cloudinary/', check_spare_parts_cloudinary, name='check-spare-parts-cloudinary'),
 ] 

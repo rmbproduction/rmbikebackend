@@ -8,6 +8,9 @@ from django.db import transaction
 from django.utils import timezone
 import cloudinary.uploader
 from utils.cdn_utils import cdn_manager
+from django.http import JsonResponse
+from django.conf import settings
+from django.core.files.storage import default_storage
 from .models import (
     PartCategory, SparePart, PartReview, 
     PartsCart, PartsCartItem, PartsOrder, PartsOrderItem, DistancePricingRule
@@ -728,4 +731,69 @@ class UserOrdersView(APIView):
         """Get all orders for the current user"""
         orders = PartsOrder.objects.filter(user=request.user).order_by('-created_at')
         serializer = PartsOrderSerializer(orders, many=True)
-        return Response(serializer.data) 
+        return Response(serializer.data)
+
+@api_view(['GET'])
+def check_spare_parts_cloudinary(request):
+    """Test view to check Cloudinary configuration for spare parts"""
+    import cloudinary
+    import os
+    
+    # Get the Cloudinary configuration directly from cloudinary package
+    config = cloudinary.config()
+    storage_class = str(default_storage.__class__)
+    
+    # Check if we can create test directories
+    test_folder = f"spare_parts/test_{timezone.now().timestamp()}"
+    test_status = "Not attempted"
+    
+    try:
+        # Try to upload a test image to verify Cloudinary is working
+        test_status = "Attempting upload..."
+        upload_result = cloudinary.uploader.upload(
+            "https://res.cloudinary.com/demo/image/upload/sample.jpg",  # Use Cloudinary's sample image
+            folder=test_folder,
+            public_id="test_image",
+            overwrite=True
+        )
+        test_status = "Success"
+        test_url = upload_result.get('secure_url', 'No URL returned')
+    except Exception as e:
+        test_status = f"Failed: {str(e)}"
+        test_url = None
+    
+    # Get a sample spare part with image
+    sample_part = SparePart.objects.filter(main_image__isnull=False).first()
+    sample_part_data = None
+    
+    if sample_part:
+        sample_part_data = {
+            'name': sample_part.name,
+            'main_image_field': str(sample_part.main_image),
+            'main_image_url': sample_part.main_image.url if hasattr(sample_part.main_image, 'url') else None,
+            'additional_images': sample_part.additional_images
+        }
+    
+    return JsonResponse({
+        'cloudinary_config': {
+            'cloud_name': config.cloud_name,
+            'api_key_configured': bool(config.api_key),
+            'api_secret_configured': bool(config.api_secret),
+            'secure': config.secure,
+        },
+        'storage_info': {
+            'storage_class': storage_class,
+            'is_cloudinary': 'cloudinary' in storage_class.lower(),
+            'default_storage': settings.DEFAULT_FILE_STORAGE,
+        },
+        'test_upload': {
+            'status': test_status,
+            'url': test_url,
+        },
+        'sample_part': sample_part_data,
+        'cloudinary_settings': {
+            'cloud_name': settings.CLOUDINARY_CLOUD_NAME,
+            'api_key_configured': bool(settings.CLOUDINARY_API_KEY),
+            'api_secret_configured': bool(settings.CLOUDINARY_API_SECRET),
+        }
+    }) 
