@@ -1,5 +1,9 @@
 import sys
 import importlib
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+from decouple import config
 
 print(f"Python version: {sys.version}")
 print(f"Python path: {sys.executable}")
@@ -21,50 +25,33 @@ for package in packages_to_check:
     except ImportError:
         print(f"✗ {package} is NOT installed")
 
-# Try direct Cloudinary upload
-print("\nTesting direct Cloudinary upload:")
+# Get Cloudinary credentials
+CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='dz81bjuea')
+CLOUDINARY_API_KEY = config('CLOUDINARY_API_KEY', default='')
+CLOUDINARY_API_SECRET = config('CLOUDINARY_API_SECRET', default='')
+
+print(f"Cloudinary Config:")
+print(f"Cloud Name: {CLOUDINARY_CLOUD_NAME}")
+print(f"API Key: {CLOUDINARY_API_KEY}")
+print(f"API Secret: {'Set' if CLOUDINARY_API_SECRET else 'Not set'}")
+
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
+)
+
 try:
-    import os
-    import cloudinary
-    import cloudinary.uploader
-    from decouple import config
+    # Test Cloudinary connection
+    print("\nTesting Cloudinary connection...")
+    result = cloudinary.api.ping()
+    print(f"Connection successful: {result}")
     
-    # Get Cloudinary configuration
-    cloud_name = config('CLOUDINARY_CLOUD_NAME', default='dz81bjuea')
-    api_key = config('CLOUDINARY_API_KEY', default='')
-    api_secret = config('CLOUDINARY_API_SECRET', default='')
+    # Get account info
+    print("\nGetting account info...")
+    account_info = cloudinary.api.usage()
+    print(f"Account info: {account_info}")
     
-    print(f"Cloud name: {cloud_name}")
-    print(f"API key: {'Set' if api_key else 'Not set'}")
-    print(f"API secret: {'Set' if api_secret else 'Not set'}")
-    
-    # Configure Cloudinary
-    cloudinary.config(
-        cloud_name=cloud_name,
-        api_key=api_key,
-        api_secret=api_secret
-    )
-    
-    # Create test file - Give it a unique name to avoid pytest trying to run it
-    test_file = "cloudinary_test_upload_temp.txt"
-    with open(test_file, "w") as f:
-        f.write("Test content for Cloudinary upload")
-    
-    # Test upload
-    if api_key and api_secret:
-        print("Attempting direct upload to Cloudinary...")
-        result = cloudinary.uploader.upload(
-            test_file,
-            folder="test",
-            resource_type="raw"
-        )
-        print(f"Success! Uploaded to: {result['secure_url']}")
-    else:
-        print("Skipping upload test as API credentials are not set")
-    
-    # Clean up
-    if os.path.exists(test_file):
-        os.remove(test_file)
-        
 except Exception as e:
     print(f"Error: {str(e)}") 

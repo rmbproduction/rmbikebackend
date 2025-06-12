@@ -93,8 +93,28 @@ class SparePart(models.Model):
         
     def get_main_image_url(self):
         """Get the URL for the main image with fallback"""
-        if self.main_image and hasattr(self.main_image, 'url'):
-            return self.main_image.url
+        if self.main_image:
+            # If main_image is a string (Cloudinary public_id), build the URL
+            if isinstance(self.main_image, str):
+                try:
+                    # Try to use CloudinaryImage to build URL
+                    import cloudinary
+                    url = cloudinary.CloudinaryImage(self.main_image).build_url(secure=True)
+                    return url
+                except Exception:
+                    # Fallback: construct the URL directly
+                    try:
+                        cloud_name = cloudinary.config().cloud_name
+                        return f"https://res.cloudinary.com/{cloud_name}/image/upload/{self.main_image}"
+                    except Exception:
+                        pass
+            # If main_image has url attribute, use it (legacy support)
+            elif hasattr(self.main_image, 'url'):
+                url = self.main_image.url
+                # Ensure URL is secure (https)
+                if url and url.startswith('http:'):
+                    url = url.replace('http:', 'https:', 1)
+                return url
         return None
         
     def add_additional_image(self, image_url, public_id=None):

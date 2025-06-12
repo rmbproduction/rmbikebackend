@@ -4,6 +4,7 @@ from django.utils.safestring import mark_safe
 from django import forms
 import cloudinary
 import cloudinary.uploader
+import cloudinary.api
 from django.contrib import messages
 from .models import (
     PartCategory, SparePart, PartReview,
@@ -34,6 +35,11 @@ class SparePartAdminForm(forms.ModelForm):
                 
                 # Set the main_image field with the Cloudinary public_id
                 instance.main_image = result['public_id']
+                
+                # Print debug info
+                print(f"Cloudinary upload result: {result}")
+                print(f"Setting main_image to: {instance.main_image}")
+                
             except Exception as e:
                 self.add_error('upload_image', f"Error uploading to Cloudinary: {str(e)}")
         
@@ -88,8 +94,28 @@ class SparePartAdmin(admin.ModelAdmin):
     )
     
     def image_preview(self, obj):
-        if obj.main_image and hasattr(obj.main_image, 'url'):
-            return format_html('<img src="{}" width="200" height="auto" />', obj.main_image.url)
+        if obj.main_image:
+            # If main_image is a string (Cloudinary public_id), build the URL
+            if isinstance(obj.main_image, str):
+                try:
+                    # Build Cloudinary URL - use secure URL (https)
+                    url = cloudinary.CloudinaryImage(obj.main_image).build_url(secure=True)
+                    return format_html('<img src="{}" width="200" height="auto" />', url)
+                except Exception as e:
+                    print(f"Error building Cloudinary URL: {str(e)}")
+                    
+                    # Fallback: try to construct the URL directly
+                    try:
+                        cloud_name = cloudinary.config().cloud_name
+                        url = f"https://res.cloudinary.com/{cloud_name}/image/upload/{obj.main_image}"
+                        return format_html('<img src="{}" width="200" height="auto" />', url)
+                    except Exception as e2:
+                        print(f"Error with fallback URL: {str(e2)}")
+                        return "Error displaying image"
+                        
+            # If main_image has url attribute, use it (legacy support)
+            elif hasattr(obj.main_image, 'url'):
+                return format_html('<img src="{}" width="200" height="auto" />', obj.main_image.url)
         return "No Main Image"
     
     def additional_images_preview(self, obj):
@@ -108,12 +134,35 @@ class SparePartAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         
         # Check if we need to update the image preview after save
-        if obj.main_image and hasattr(obj.main_image, 'url'):
-            # Force refresh the admin page to show the new image
-            request._messages.add(
-                messages.INFO, 
-                f"Image uploaded successfully. URL: {obj.main_image.url}"
-            )
+        if obj.main_image:
+            # If main_image is a string (Cloudinary public_id), build the URL for the message
+            if isinstance(obj.main_image, str):
+                try:
+                    url = cloudinary.CloudinaryImage(obj.main_image).build_url(secure=True)
+                    request._messages.add(
+                        messages.INFO, 
+                        f"Image uploaded successfully. URL: {url}"
+                    )
+                except Exception as e:
+                    # Fallback: try to construct the URL directly
+                    try:
+                        cloud_name = cloudinary.config().cloud_name
+                        url = f"https://res.cloudinary.com/{cloud_name}/image/upload/{obj.main_image}"
+                        request._messages.add(
+                            messages.INFO, 
+                            f"Image uploaded successfully. URL: {url}"
+                        )
+                    except Exception as e2:
+                        request._messages.add(
+                            messages.WARNING, 
+                            f"Image uploaded but URL could not be generated: {str(e)}, {str(e2)}"
+                        )
+            # If main_image has url attribute, use it (legacy support)
+            elif hasattr(obj.main_image, 'url'):
+                request._messages.add(
+                    messages.INFO, 
+                    f"Image uploaded successfully. URL: {obj.main_image.url}"
+                )
     
     image_preview.short_description = 'Main Image Preview'
     additional_images_preview.short_description = 'Additional Images Preview'
