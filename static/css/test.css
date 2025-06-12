@@ -1,0 +1,11 @@
+/* Test CSS file to verify static file serving */
+body {
+    background-color: #f8f9fa;
+    color: #333;
+    font-family: Arial, sans-serif;
+}
+
+.test-class {
+    color: blue;
+    font-weight: bold;
+} 

@@ -376,9 +376,20 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
+# Use WhiteNoise for static files in production
+if ENVIRONMENT == 'production':
+    # WhiteNoise configuration
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+else:
+    # Use default static files storage in development
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Use Cloudinary for media files only
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Image optimization settings
 ENABLE_AUTO_OPTIMIZATION = config('ENABLE_AUTO_OPTIMIZATION', default=True, cast=bool)
@@ -575,11 +586,3 @@ CHANNEL_LAYERS = {
 
 # Specify ASGI application
 ASGI_APPLICATION = 'authback.asgi.application'
-
-# Use Cloudinary for media files but not for static files in development
-if DEBUG:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-else: 
-    STATICFILES_STORAGE = 'cloudinary_storage.storage.StaticHashedCloudinaryStorage'
-
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

@@ -15,14 +15,6 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 
-# Apply the Jet patch before Django starts
-try:
-    from jet_patch import patch_jet
-    patch_jet()
-    print("Django Jet patch applied successfully")
-except Exception as e:
-    print(f"Failed to apply Django Jet patch: {e}")
-
 from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'authback.settings')
